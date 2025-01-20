@@ -1,6 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 use std::env;
+use log::{info, warn, error, debug};
 
 use tokio::sync::RwLock;
 use super::{
@@ -80,6 +81,7 @@ impl WhaleDetector {
 
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
         // Start mempool monitoring
+        info!("Starting mempool monitoring");
         let mempool_clone = self.mempool.clone();
         tokio::spawn(async move {
             mempool_clone.monitor_mempool().await;
@@ -93,6 +95,7 @@ impl WhaleDetector {
 
     pub async fn process_transactions(&self) {
 
+        info!("processing transactions");
         while let Ok(transaction) = rx.recv().await {
             // Process confirmed transactions in parallel
             let detector = self.clone();
@@ -106,6 +109,7 @@ impl WhaleDetector {
 
     async fn analyze_transaction(&self, transaction: Transaction) -> Option<WhaleMovement> {
         // Check if it's a whale transaction
+        info!("analysing transaction", transaction);
         if !self.is_whale_transaction(&transaction).await {
             return None;
         }
@@ -113,6 +117,8 @@ impl WhaleDetector {
         // Convert and analyze DEX transaction
         let dex_transaction = DexTransaction::from(transaction.clone());
         let dex_trade = self.dex_analyzer.analyze_transaction(dex_transaction).await?;
+        info!(dex_transaction, "DEX TRANSACTION");
+        info!(dex_trade, "DEX TRADE");
 
         // Get whale address and calculate confidence
         let (whale_address, confidence) = tokio::join!(
@@ -136,6 +142,7 @@ impl WhaleDetector {
             },
             TradeType::Unknown => return None, // Skip non-DEX trades
         };
+        info!(movement_type, "MOVEMENT TYPE");
 
         // Cache the results
         self.cache.update_whale_data(

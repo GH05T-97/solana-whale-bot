@@ -17,6 +17,8 @@ use crate::solana_whale_trader::{
     strategy::StrategyConfig,
 };
 
+use crate::solana_config::SolanaConfig;
+
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables
     dotenv().ok();
@@ -57,13 +59,6 @@ fn load_configuration() -> Result<AppConfig, Box<dyn std::error::Error>> {
     })
 }
 
-fn load_keypair() -> Result<Keypair, Box<dyn std::error::Error>> {
-    // In production, implement secure keypair loading
-    let keypair_path = env::var("SOLANA_KEYPAIR_PATH")?;
-    // Implement keypair loading logic
-    // For now, a placeholder
-    Ok(Keypair::new())
-}
 
 // Configuration struct to hold different component configurations
 struct AppConfig {

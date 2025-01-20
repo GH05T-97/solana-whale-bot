@@ -1,3 +1,5 @@
+use log::{info, warn, error, debug};
+
 use solana_client::{
     nonblocking::{
         websocket::{WebSocket, WebSocketClient},
@@ -79,11 +81,13 @@ impl MempoolMonitor {
     ) -> Result<(), MempoolError> {
         let rpc_client = solana_config.create_rpc_client();
 
+        info!("Monitoring rpc stream");
         loop {
             // Fetch recent transactions
             match rpc_client.get_recent_transactions().await {
                 Ok(transactions) => {
                     for tx in transactions {
+                        info!(txn, "transaction - from rpc stream");
                         let log = TransactionLog {
                             signature: tx.signature,
                             raw_transaction: tx.transaction,
@@ -120,6 +124,7 @@ impl MempoolMonitor {
             RpcTransactionLogsConfig::default()
         ).await.map_err(|e| MempoolError::WebsocketError(e.to_string()))?;
 
+        info!("Monitoring websocket stream");
         while let Some(log_result) = logs_stream.next().await {
             match log_result {
                 Ok(log_entry) => {
