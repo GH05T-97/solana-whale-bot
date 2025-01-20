@@ -1,0 +1,32 @@
+# Rust specific
+/target
+**/*.rs.bk
+Cargo.lock
+
+# Environment files
+.env
+*.env
+
+# Compiled files
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Logs
+*.log
+
+# IDE specific
+.vscode/
+.idea/
+*.iml
+.DS_Store
+
+# Wallet and key files (NEVER commit these!)
+**/keypair.json
+**/*.key
+**/*.seed
+
+# Temporary files
+*.swp
+*~
