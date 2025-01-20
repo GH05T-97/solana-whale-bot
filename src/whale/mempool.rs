@@ -19,6 +19,7 @@ use tokio::{
 };
 use thiserror::Error;
 use futures::StreamExt;
+use crate::SolanaConfig;
 
 #[derive(Debug, Clone)]
 pub struct TransactionLog {
@@ -27,7 +28,7 @@ pub struct TransactionLog {
     pub timestamp: u64,
 }
 
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum MempoolError {
     #[error("RPC Connection Error: {0}")]
     RpcConnectionError(String),
@@ -40,6 +41,7 @@ pub enum MempoolError {
 }
 
 pub struct MempoolMonitor {
+    solana_config: SolanaConfig,
     rpc_urls: Vec<String>,
     websocket_urls: Vec<String>,
     transaction_sender: mpsc::Sender<TransactionLog>,
@@ -47,20 +49,21 @@ pub struct MempoolMonitor {
 }
 
 impl MempoolMonitor {
-    pub fn new() -> Self {
+    pub fn new(solana_config: SolanaConfig) -> Self {
         let rpc_urls = vec![
             "https://api.mainnet-beta.solana.com".to_string(),
             "https://rpc.ankr.com/solana".to_string(),
         ];
 
         let websocket_urls = vec![
-            "wss://api.mainnet-beta.solana.com".to_string(),
+            solana_config.websocket_url(),
             "wss://rpc.ankr.com/solana_jsonrpc".to_string(),
         ];
 
         let (tx, rx) = mpsc::channel(100);
 
         Self {
+            solana_config,
             rpc_urls,
             websocket_urls,
             transaction_sender: tx,
@@ -68,38 +71,13 @@ impl MempoolMonitor {
         }
     }
 
-    // Main monitoring method
-    pub async fn start_monitoring(&self) -> Result<mpsc::Receiver<TransactionLog>, MempoolError> {
-        let (tx, mut rx) = mpsc::channel(100);
-
-        // Spawn monitoring tasks for each RPC and Websocket URL
-        for rpc_url in &self.rpc_urls {
-            let tx_clone = tx.clone();
-            tokio::spawn(async move {
-                if let Err(e) = Self::monitor_rpc_stream(rpc_url.clone(), tx_clone).await {
-                    eprintln!("RPC monitoring error: {:?}", e);
-                }
-            });
-        }
-
-        for ws_url in &self.websocket_urls {
-            let tx_clone = tx.clone();
-            tokio::spawn(async move {
-                if let Err(e) = Self::monitor_websocket_stream(ws_url.clone(), tx_clone).await {
-                    eprintln!("Websocket monitoring error: {:?}", e);
-                }
-            });
-        }
-
-        Ok(rx)
-    }
-
     // RPC-based transaction monitoring
     async fn monitor_rpc_stream(
+        solana_config: &SolanaConfig,
         rpc_url: String,
         sender: mpsc::Sender<TransactionLog>
     ) -> Result<(), MempoolError> {
-        let rpc_client = RpcClient::new(rpc_url);
+        let rpc_client = solana_config.create_rpc_client();
 
         loop {
             // Fetch recent transactions
@@ -129,6 +107,7 @@ impl MempoolMonitor {
 
     // Websocket-based real-time monitoring
     async fn monitor_websocket_stream(
+        solana_config: &SolanaConfig,
         ws_url: String,
         sender: mpsc::Sender<TransactionLog>
     ) -> Result<(), MempoolError> {
@@ -147,7 +126,7 @@ impl MempoolMonitor {
                     // Convert log entry to TransactionLog
                     let log = TransactionLog {
                         signature: log_entry.signature,
-                        raw_transaction: log_entry.transaction, // Adjust based on actual log entry structure
+                        raw_transaction: log_entry.transaction,
                         timestamp: chrono::Utc::now().timestamp() as u64,
                     };
 

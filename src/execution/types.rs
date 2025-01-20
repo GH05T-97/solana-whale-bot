@@ -59,10 +59,6 @@ pub struct Fill {
     pub fee: Decimal,
 }
 
-pub struct OrderResult {
-    // fields defining an order result
-}
-
 pub struct SwapParams {
     pub input_mint: Pubkey,
     pub output_mint: Pubkey,

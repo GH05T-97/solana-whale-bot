@@ -1,4 +1,4 @@
-use super::super::types::{DexTransaction, DexTrade, TradeType, DexProtocol};
+use crate::dex::types::{DexTransaction, TradeType, DexTrade, DexProtocol};
 use solana_sdk::instruction::Instruction;
 
 #[derive(Debug)]

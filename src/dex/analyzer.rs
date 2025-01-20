@@ -1,4 +1,4 @@
-use crate::dex::types::{DexProtocol, DexTransaction, DexTrade, TradeType};
+use super::types::{DexTransaction, TradeType, DexTrade, DexProtocol};
 use solana_sdk::pubkey::Pubkey;
 use std::collections::HashSet;
 

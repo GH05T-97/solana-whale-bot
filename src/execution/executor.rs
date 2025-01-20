@@ -10,17 +10,28 @@ use std::time::{Duration, Instant};
 use thiserror::Error;
 use log::{error, info, warn};
 
-use crate::execution::{
+use crate::execution::clients::{
     JupiterApiClient,
     RaydiumApiClient,
 };
 
+use crate::strategy::types::TradeSignal;
+
+use crate::execution::types::{
+    OrderRequest,
+    OrderResult,
+    SwapParams,
+    SwapQuote,
+};
+
+use crate::SolanaConfig;
+
 pub struct TradeExecutor {
+    solana_config: SolanaConfig,
     client: RpcClient,
     orders: Arc<RwLock<HashMap<String, OrderRequest>>>,
     active_positions: Arc<RwLock<HashMap<Pubkey, Position>>>,
     keypair: Keypair,
-    config: ExecutorConfig,
     retry_handler: RetryHandler,
     token_availability_cache: Arc<RwLock<HashMap<Pubkey, TokenAvailability>>>,
     jupiter_client: JupiterApiClient,
@@ -28,16 +39,13 @@ pub struct TradeExecutor {
 }
 
 impl TradeExecutor {
-    pub fn new(keypair: Keypair, config: ExecutorConfig) -> Self {
+    pub fn new(solana_config: SolanaConfig) -> Self {
         Self {
-            client: RpcClient::new_with_commitment(
-                "https://api.mainnet-beta.solana.com".to_string(),
-                CommitmentConfig::confirmed(),
-            ),
+            client: solana_config.create_rpc_client(),
+            solana_config: solana_config.clone(),
             orders: Arc::new(RwLock::new(HashMap::new())),
             active_positions: Arc::new(RwLock::new(HashMap::new())),
-            keypair,
-            config,
+            keypair: solana_config.keypair.clone(), // Use keypair from SolanaConfig
             retry_handler: RetryHandler::new(RetryConfig::default()),
             token_availability_cache: Arc::new(RwLock::new(HashMap::new())),
             jupiter_client: JupiterApiClient::new(),
@@ -105,6 +113,13 @@ impl TradeExecutor {
         }
     }
 
+    async fn submit_transaction(&self, transaction: Transaction) -> Result<Signature, ExecutionError> {
+        self.client
+            .send_and_confirm_transaction(&transaction)
+            .await
+            .map_err(|e| ExecutionError::TransactionSubmissionError(e.to_string()))
+    }
+
     // Execute trade method
     pub async fn execute_trade(&self, signal: TradeSignal) -> Result<OrderResult, ExecutionError> {
         // Determine which DEX has the token available
@@ -117,58 +132,84 @@ impl TradeExecutor {
         // Validate order
         self.validate_order(&order_request).await?;
 
-        // Execute trade based on available DEX
-        match dex_type {
-            DexType::Jupiter => self.execute_jupiter_trade(&order_request).await,
-            DexType::Raydium => self.execute_raydium_trade(&order_request).await,
-        }
+        // Create transaction based on DEX
+        let transaction = match dex_type {
+            DexType::Jupiter => self.create_jupiter_transaction(&order_request).await?,
+            DexType::Raydium => self.create_raydium_transaction(&order_request).await?,
+        };
+
+        // Submit transaction to Solana network
+        let signature = self.submit_transaction(transaction).await?;
+
+        // Return order result
+        Ok(OrderResult {
+            order_id: signature.to_string(),
+            status: OrderStatus::Filled,
+            fills: Vec::new(), // Empty vector
+            average_price: 0.00, // Use None for Optional<Decimal>
+            timestamp: Utc::now(), // Use Utc::now() instead of DateTime::now()
+        })
     }
 
     // Execute trade on Jupiter
-    async fn execute_jupiter_trade(&self, order_request: &OrderRequest) -> Result<OrderResult, ExecutionError> {
+    // Create transaction for Jupiter swap
+    async fn create_jupiter_transaction(&self, order_request: &OrderRequest) -> Result<Transaction, ExecutionError> {
         let jupiter_client = JupiterSwapClient::new();
 
+        // Prepare swap parameters
         let swap_params = SwapParams {
-            input_mint: USDC_MINT, // or determine input token
+            input_mint: USDC_MINT,
             output_mint: order_request.output_token,
             amount: order_request.amount,
-            slippage_bps: 50, // 0.5% slippage
-            user_public_key: self.keypair.pubkey(),
         };
 
-        // Execute swap
-        let swap_result = jupiter_client.get_swap_instruction(&swap_params).await?;
+        // Get swap instruction
+        let swap_instruction = jupiter_client.get_swap_instruction(&swap_params).await?;
 
-        // Create and return order result
-        Ok(OrderResult {
-            order_id: "jupiter_trade".to_string(),
-            status: OrderStatus::Filled,
-            // Add additional details as needed
-        })
+        // Get recent blockhash
+        let recent_blockhash = self.client.get_latest_blockhash()
+            .await
+            .map_err(|e| ExecutionError::BlockhashError(e.to_string()))?;
+
+        // Create and sign transaction
+        Ok(Transaction::new_signed_with_payer(
+            &[swap_instruction],
+            Some(&self.keypair.pubkey()),
+            &[&self.keypair],
+            recent_blockhash
+        ))
     }
 
     // Execute trade on Raydium
-    async fn execute_raydium_trade(&self, order_request: &OrderRequest) -> Result<OrderResult, ExecutionError> {
-        let raydium_client = RaydiumSwapClient::new();
+   // Similar method for Raydium transaction creation
+   async fn create_raydium_transaction(&self, order_request: &OrderRequest) -> Result<Transaction, ExecutionError> {
+    let raydium_client = RaydiumSwapClient::new();
 
-        let swap_params = RaydiumSwapParams {
-            input_token: SOL_MINT, // or determine input token
-            output_token: order_request.output_token,
-            input_amount: order_request.amount,
-            min_output_amount: self.calculate_min_output_amount(order_request),
-            user_public_key: self.keypair.pubkey(),
-        };
+    // Prepare swap parameters
+    let swap_params = RaydiumSwapParams {
+        input_token: SOL_MINT,
+        output_token: order_request.output_token,
+        input_amount: order_request.amount,
+        min_output_amount: self.calculate_min_output_amount(order_request),
+        user_public_key: self.keypair.pubkey(),
+    };
 
-        // Execute swap
-        let swap_result = raydium_client.get_swap_instruction(&swap_params).await?;
+    // Get swap instruction
+    let swap_instruction = raydium_client.get_swap_instruction(&swap_params).await?;
 
-        // Create and return order result
-        Ok(OrderResult {
-            order_id: "raydium_trade".to_string(),
-            status: OrderStatus::Filled,
-            // Add additional details as needed
-        })
-    }
+    // Get recent blockhash
+    let recent_blockhash = self.client.get_latest_blockhash()
+        .await
+        .map_err(|e| ExecutionError::BlockhashError(e.to_string()))?;
+
+    // Create and sign transaction
+    Ok(Transaction::new_signed_with_payer(
+        &[swap_instruction],
+        Some(&self.keypair.pubkey()),
+        &[&self.keypair],
+        recent_blockhash
+    ))
+}
 
     // Helper method to calculate minimum output amount
     fn calculate_min_output_amount(&self, request: &OrderRequest) -> u64 {
@@ -193,19 +234,17 @@ impl TradeExecutor {
     // Prepare order request from trade signal
     async fn prepare_order_request(&self, signal: TradeSignal) -> Result<OrderRequest, ExecutionError> {
         Ok(OrderRequest {
-            input_token: USDC_MINT, // or determine dynamically
-            output_token: signal.token,
-            amount: signal.size.to_u64().ok_or(ExecutionError::ValidationError(
-                "Invalid trade size".to_string()
-            ))?,
-            dex_type: None, // Will be set later
-            order_type: OrderType::Market,
-            stop_loss: signal.stop_loss.to_u64().ok_or(ExecutionError::ValidationError(
-                "Invalid stop loss".to_string()
-            ))?,
-            take_profit: signal.take_profit.to_u64().ok_or(ExecutionError::ValidationError(
-                "Invalid take profit".to_string()
-            ))?,
+            token: signal.token, // Use the token from trade signal
+            direction: match signal.direction {
+                TradeDirection::Long => OrderDirection::Buy,
+                TradeDirection::Short => OrderDirection::Sell,
+            },
+            size: signal.size,
+            price: signal.entry_price, // Use entry price from trade signal
+            order_type: OrderType::Market, // Or determine based on signal
+            time_in_force: TimeInForce::GoodTilCancelled, // Default or from configuration
+            stop_loss: Some(signal.stop_loss),
+            take_profit: Some(signal.take_profit),
         })
     }
 }

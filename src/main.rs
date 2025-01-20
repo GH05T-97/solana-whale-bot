@@ -1,17 +1,22 @@
+mod execution;
+mod whale;
+mod solana_config;
+mod dex;
+pub mod strategy;
+
 use tokio;
 use log::{info, error};
 use dotenv::dotenv;
 use std::env;
 
 // Import necessary components
-use solana_whale_trader::{
+use crate::solana_whale_trader::{
     whale::WhaleDetector,
     whale::config::WhaleConfig,
     execution::TradeExecutor,
     strategy::StrategyConfig,
 };
 
-#[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load environment variables
     dotenv().ok();
@@ -28,7 +33,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create TradeExecutor
     let trade_executor = TradeExecutor::new(
         keypair,
-        config.executor_config.clone()
     );
 
     // Create WhaleDetector with TradeExecutor

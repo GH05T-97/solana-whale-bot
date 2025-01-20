@@ -1,5 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
+use std::env;
+
 use tokio::sync::RwLock;
 use super::{
     config::WhaleConfig,
@@ -9,20 +11,22 @@ use super::{
 
 };
 
-use crate::dex::{
-    DexAnalyzer, DexTransaction, TradeType
-};
+use crate::dex::types::{DexTransaction, TradeType, DexProtocol, DexTrade};
+use crate::dex::DexAnalyzer;
 
 use crate::execution::TradeExecutor;
-use crate::strategy::{
-    StrategyAnalyzer,
+use crate::solana_config::SolanaConfig;
+use crate::strategy::types::{
     StrategyConfig,
-    RiskParams
+    RiskParams,
+    TradeSignal
 };
+use crate::strategy::StrategyAnalyzer;
 use rust_decimal::Decimal;
 
 
 use rust_decimal::Decimal;
+use crate::SolanaConfig;
 
 #[derive(Clone)]
 struct PendingTransaction {
@@ -37,7 +41,6 @@ pub struct WhaleDetector {
     config: WhaleConfig,
     recent_movements: Arc<RwLock<VecDeque<WhaleMovement>>>,
     known_whales: Arc<RwLock<HashSet<String>>>,
-    monitor: HybridMonitor,
     cache: WhaleCache,
     mempool: MempoolMonitor,
     dex_analyzer: DexAnalyzer,
@@ -60,13 +63,15 @@ impl WhaleDetector {
             total_portfolio_sol: Decimal::new(1000000000, 9), // 1 SOL portfolio
         };
 
+        let wallet_env = env::var("WALLET_KEYPAIR_PATH").expect("WALLET_KEYPAIR_PATH must be set");
+        let solana_config = SolanaConfig::mainnet_default(wallet_env);
+
         Self {
             config,
             recent_movements,
             known_whales,
-            monitor: HybridMonitor::new(),
             cache: WhaleCache::new(),
-            mempool: MempoolMonitor::new(), /// change the paramters
+            mempool: MempoolMonitor::new(solana_config), /// change the paramters
             dex_analyzer: DexAnalyzer::new(),
             strategy_analyzer: StrategyAnalyzer::new(strategy_config),
             trade_executor
@@ -87,7 +92,6 @@ impl WhaleDetector {
     }
 
     pub async fn process_transactions(&self) {
-        let mut rx = self.monitor.subscribe();
 
         while let Ok(transaction) = rx.recv().await {
             // Process confirmed transactions in parallel

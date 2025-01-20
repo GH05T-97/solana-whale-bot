@@ -1,6 +1,6 @@
 pub mod protocols;
 pub mod analyzer;
-mod types;
+pub mod types;  // Change from 'mod types;' to 'pub mod types;'
 
 pub use protocols::{
     jupiter::JupiterProtocol,
