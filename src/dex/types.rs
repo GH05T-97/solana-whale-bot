@@ -21,6 +21,7 @@ pub struct DexTransaction {
 pub enum DexProtocol {
     Jupiter,
     Raydium,
+    Unknown
 }
 
 #[derive(Clone, Debug, Default)]

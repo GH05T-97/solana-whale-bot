@@ -17,6 +17,7 @@ use crate::{
 
 use rust_decimal::prelude::FromPrimitive;
 
+#[derive(Debug, Default)]
 pub struct RiskManager {
     risk_params: RiskParams,
 }

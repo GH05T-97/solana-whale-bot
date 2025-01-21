@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub enum TradeDirection {
     Long,
     Short,
@@ -26,7 +26,7 @@ pub struct TradeSignal {
     pub estimated_slippage: Decimal,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Default)]
 pub struct StrategyConfig {
     pub risk_params: RiskParams,
     pub min_whale_success_rate: f64,

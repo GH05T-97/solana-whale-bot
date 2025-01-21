@@ -13,7 +13,7 @@ pub struct WhaleConfig {
 }
 
 impl WhaleConfig {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             minimum_balance: 10_000 * 1_000_000_000,    // 10,000 SOL in lamports
             minimum_transaction: 1_000 * 1_000_000_000,  // 1,000 SOL in lamports

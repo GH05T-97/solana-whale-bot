@@ -47,7 +47,7 @@ pub enum MempoolError {
     TimeoutError(String),
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug)]
 pub struct MempoolMonitor {
     solana_config: SolanaConfig,
     rpc_urls: Vec<String>,

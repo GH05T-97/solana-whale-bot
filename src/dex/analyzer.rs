@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use super::types::{DexTransaction, TradeType, DexTrade, DexProtocol};
 use solana_sdk::pubkey::Pubkey;
 use std::collections::HashSet;
@@ -20,8 +22,8 @@ impl DexAnalyzer {
         let mut supported_dexes = HashSet::new();
 
         // Add supported DEX program IDs
-        supported_dexes.insert(Pubkey::from_str(JUPITER_PROGRAM_ID).unwrap());
-        supported_dexes.insert(Pubkey::from_str(RAYDIUM_PROGRAM_ID).unwrap());
+        supported_dexes.insert(Pubkey::from_str(JUPITER_PROGRAM_ID).expect("Invalid Jupiter program ID"));
+        supported_dexes.insert(Pubkey::from_str(RAYDIUM_PROGRAM_ID).expect("Invalid Raydium program ID"));
 
         Self {
             supported_dexes,

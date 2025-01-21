@@ -6,7 +6,7 @@ use solana_sdk::{
 };
 use std::str::FromStr;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SolanaConfig {
     pub rpc_url: String,
     pub commitment: CommitmentConfig,

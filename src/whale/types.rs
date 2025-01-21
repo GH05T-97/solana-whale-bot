@@ -22,6 +22,7 @@ pub struct WhaleMovement {
     pub whale_address: String,
     pub movement_type: MovementType,
     pub confidence: f64,
+    pub price: f64,
 }
 
 #[derive(Clone, Debug, Default)]
