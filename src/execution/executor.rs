@@ -15,6 +15,7 @@ use crate::execution::clients::{
     RaydiumApiClient,
 };
 
+
 use crate::strategy::types::TradeSignal;
 
 // Common imports to add
@@ -39,6 +40,18 @@ use crate::execution::{
 use crate::SolanaConfig;
 
 const USDC_MINT: Pubkey = "FSxJ85FXVsXSr51SeWf9ciJWTcRnqKFSmBgRDeL3KyWw";
+pub struct JupiterSwapParams {
+    pub in_amount: u64,
+    pub out_amount: u64,
+    pub slippage_bps: u64,
+    pub platform_fee_bps: u64,
+}
+
+pub struct RaydiumSwapParams {
+    pub amount_in: u64,
+    pub min_amount_out: u64,
+    pub pool_id: Pubkey,
+}
 
 // Define the Position type if not already defined somewhere
 pub struct Position {
@@ -184,7 +197,7 @@ impl TradeExecutor {
     // Execute trade on Jupiter
     // Create transaction for Jupiter swap
     async fn create_jupiter_transaction(&self, order_request: &OrderRequest) -> Result<Transaction, ExecutionError> {
-        let jupiter_client = JupiterSwapClient::new();
+        let jupiter_client = JupiterApiClient::new();
 
         // Prepare swap parameters
         let swap_params = SwapParams {
@@ -217,11 +230,9 @@ impl TradeExecutor {
 
     // Prepare swap parameters
     let swap_params = RaydiumSwapParams {
-        input_token: SOL_MINT,
-        output_token: order_request.output_token,
-        input_amount: order_request.amount,
-        min_output_amount: self.calculate_min_output_amount(order_request),
-        user_public_key: self.keypair.pubkey(),
+        pool_id: SOL_MINT,
+        amount_in: order_request.amount,
+        min_amount_out: self.calculate_min_output_amount(order_request),
     };
 
     // Get swap instruction
