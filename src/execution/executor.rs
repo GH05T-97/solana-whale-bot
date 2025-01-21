@@ -18,6 +18,13 @@ use crate::execution::clients::{
 use crate::strategy::types::TradeSignal;
 use super::types::DexType;
 
+// Common imports to add
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use std::collections::{HashMap, HashSet};
+use solana_sdk::pubkey::Pubkey;
+use chrono::{DateTime, Utc};
+
 use crate::execution::types::{
     OrderRequest,
     OrderResult,

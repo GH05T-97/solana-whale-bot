@@ -6,13 +6,28 @@ use super::types::{StrategyConfig, RiskParams};
 use tokio::sync::RwLock;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
+// Common imports to add
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use std::collections::{HashMap, HashSet};
 use solana_sdk::pubkey::Pubkey;
+use chrono::{DateTime, Utc};
 use crate::{
     whale::types::WhaleMovement,
     strategy::types::{TradeSignal, TradeDirection}, // Modify this line
 };
 
+use rust_decimal::prelude::FromPrimitive;
 
+pub struct RiskManager {
+    risk_params: RiskParams,
+}
+
+impl RiskManager {
+    pub fn new(risk_params: RiskParams) -> Self {
+        Self { risk_params }
+    }
+}
 
 pub struct StrategyAnalyzer {
     config: StrategyConfig,
@@ -58,9 +73,9 @@ impl StrategyAnalyzer {
         };
 
         // Calculate price levels
-        let entry_price = Decimal::from_f64(movement.price)?;
-        let stop_loss_pct = Decimal::new(2, 2); // 2% stop loss
-        let take_profit_pct = Decimal::new(6, 2); // 6% take profit
+        let entry_price = Decimal::from_f64(movement.price).unwrap_or_else(|| Decimal::new(0, 0));;
+        let stop_loss_pct = Decimal::new(2, 2).unwrap_or_else(|| Decimal::new(0, 0));; // 2% stop loss
+        let take_profit_pct = Decimal::new(6, 2).unwrap_or_else(|| Decimal::new(0, 0));; // 6% take profit
 
         let (stop_loss, take_profit) = match direction {
             TradeDirection::Long => (

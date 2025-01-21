@@ -6,23 +6,31 @@ mod solana_config;
 // Optional: re-export key types if needed
 mod dex;
 
+pub use solana_config::SolanaConfig;
+
+
+// Re-export key types
 pub use dex::{
     DexAnalyzer,
-    types::{
-        DexTransaction,
-        TradeType,
-        DexProtocol,
-        DexTrade,
-    },
+    types::DexProtocol,
+    types::DexTransaction,
+    types::TradeType,
 };
-pub use execution::TradeExecutor;
+
+pub use execution::{
+    TradeExecutor,
+    types::OrderRequest,
+    types::OrderResult,
+};
+
 pub use strategy::{
     StrategyAnalyzer,
-    types::{
-        StrategyConfig,
-        RiskParams,
-        TradeSignal,
-    },
+    types::StrategyConfig,
+    types::TradeSignal,
+    types:: RiskParams
 };
-pub use whale::WhaleDetector;
-pub use solana_config::SolanaConfig;
+
+pub use whale::{
+    WhaleDetector,
+    config::WhaleConfig,
+};

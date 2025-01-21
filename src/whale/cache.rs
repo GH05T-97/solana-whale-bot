@@ -1,4 +1,9 @@
-// src/whale/cache.rs
+// Common imports to add
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use std::collections::{HashMap, HashSet};
+use solana_sdk::pubkey::Pubkey;
+use chrono::{DateTime, Utc};
 pub struct WhaleCache {
     balance_cache: Arc<RwLock<LruCache<String, u64>>>,
     transaction_cache: Arc<RwLock<LruCache<String, Transaction>>>,

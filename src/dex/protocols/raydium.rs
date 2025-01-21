@@ -1,4 +1,10 @@
 use crate::dex::types::{DexTransaction, TradeType, DexTrade, DexProtocol};
+// Common imports to add
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use std::collections::{HashMap, HashSet};
+use solana_sdk::pubkey::Pubkey;
+use chrono::{DateTime, Utc};
 
 #[derive(Debug)]
 pub struct RaydiumSwapParams {

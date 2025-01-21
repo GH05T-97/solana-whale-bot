@@ -1,4 +1,9 @@
-use std::collections::HashSet;
+// Common imports to add
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use std::collections::{HashMap, HashSet};
+use solana_sdk::pubkey::Pubkey;
+use chrono::{DateTime, Utc};
 
 #[derive(Clone, Debug)]
 pub struct WhaleConfig {
@@ -7,8 +12,8 @@ pub struct WhaleConfig {
     pub tracked_addresses: HashSet<String>,  // Known whale addresses
 }
 
-impl Default for WhaleConfig {
-    fn default() -> Self {
+impl WhaleConfig {
+    fn new() -> Self {
         Self {
             minimum_balance: 10_000 * 1_000_000_000,    // 10,000 SOL in lamports
             minimum_transaction: 1_000 * 1_000_000_000,  // 1,000 SOL in lamports

@@ -2,6 +2,12 @@ use super::types::{DexTransaction, TradeType, DexTrade, DexProtocol};
 use solana_sdk::pubkey::Pubkey;
 use std::collections::HashSet;
 
+
+use crate::dex::protocols::{
+    JUPITER_PROGRAM_ID,
+    RAYDIUM_PROGRAM_ID,
+};
+
 pub struct DexAnalyzer {
     supported_dexes: HashSet<Pubkey>,
 }
