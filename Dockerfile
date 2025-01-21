@@ -1,5 +1,5 @@
-# Use the official Rust image
-FROM rust:1.72
+# Use the official Rust image with a newer version
+FROM rust:1.74
 
 # Set the working directory
 WORKDIR /app
