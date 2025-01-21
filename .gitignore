@@ -30,3 +30,7 @@ Cargo.lock
 # Temporary files
 *.swp
 *~
+
+.terraform
+.terraform.lock.hcl
+terraform.tfstate
