@@ -16,12 +16,12 @@ use crate::execution::clients::{
 };
 
 use crate::strategy::types::TradeSignal;
+use super::types::DexType;
 
 use crate::execution::types::{
     OrderRequest,
     OrderResult,
     SwapParams,
-    SwapQuote,
 };
 
 use crate::SolanaConfig;

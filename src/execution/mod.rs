@@ -14,7 +14,7 @@ pub use types::{
     OrderRequest,
     OrderResult,
     SwapParams,
-    SwapQuote,
+    DexType
 };
 pub use error::ExecutionError;
 pub use retry::RetryHandler;

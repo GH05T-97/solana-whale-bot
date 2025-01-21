@@ -65,6 +65,8 @@ pub struct SwapParams {
     pub amount: u64,
 }
 
-pub struct SwapQuote {
-    // fields for swap quote
+#[derive(Debug, Clone)]
+pub enum DexType {
+    Jupiter,
+    Raydium,
 }
