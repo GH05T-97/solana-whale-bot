@@ -1,5 +1,5 @@
-# Use the official Rust image with a newer version
-FROM rust:1.74
+# Use the latest Rust nightly image
+FROM rustlang/rust:nightly
 
 # Set the working directory
 WORKDIR /app
@@ -7,8 +7,14 @@ WORKDIR /app
 # Copy the project files
 COPY . .
 
-# Install dependencies and build the application
-RUN apt-get update && apt-get install -y pkg-config libssl-dev && \
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    curl
+
+# Use nightly rust and build
+RUN rustup default nightly && \
     cargo build --release
 
 # Use a smaller final image for deployment
