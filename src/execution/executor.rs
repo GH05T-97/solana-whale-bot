@@ -16,22 +16,44 @@ use crate::execution::clients::{
 };
 
 use crate::strategy::types::TradeSignal;
-use super::types::DexType;
 
 // Common imports to add
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::collections::{HashMap, HashSet};
-use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
 
 use crate::execution::types::{
     OrderRequest,
     OrderResult,
     SwapParams,
+    DexType
+};
+
+use crate::execution::{
+    ExecutionError,
+    RetryHandler,
+    retry::RetryConfig
 };
 
 use crate::SolanaConfig;
+
+const USDC_MINT: Pubkey = "FSxJ85FXVsXSr51SeWf9ciJWTcRnqKFSmBgRDeL3KyWw";
+
+// Define the Position type if not already defined somewhere
+pub struct Position {
+    // Add your position fields
+    pub token_mint: Pubkey,
+    pub amount: u64,
+    // ... other fields
+}
+
+#[derive(Clone)]
+pub struct TokenAvailability {
+    pub jupiter_available: bool,
+    pub raydium_available: bool,
+}
+
 
 #[derive(Clone, Debug, Default)]
 pub struct TradeExecutor {

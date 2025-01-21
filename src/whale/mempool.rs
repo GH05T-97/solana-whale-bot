@@ -1,12 +1,12 @@
 use log::{info, warn, error, debug};
 
-use solana_client::{
-    nonblocking::{
-        websocket::{WebSocket, WebSocketClient},
-        rpc_client::RpcClient
-    },
-    rpc_config::{RpcTransactionLogsFilter, RpcTransactionLogsConfig},
-};
+use solana_client::nonblocking::rpc_client::RpcClient;
+
+// Add futures
+use futures::StreamExt;
+
+// For error attributes, add at the top:
+use thiserror::Error;
 use solana_sdk::{
     signature::Signature,
     transaction::Transaction,
@@ -19,8 +19,6 @@ use tokio::{
     sync::mpsc,
     time::timeout,
 };
-use thiserror::Error;
-use futures::StreamExt;
 use crate::SolanaConfig;
 
 use tokio::sync::RwLock;
@@ -93,7 +91,7 @@ impl MempoolMonitor {
             match rpc_client.get_recent_transactions().await {
                 Ok(transactions) => {
                     for tx in transactions {
-                        info!(txn, "transaction - from rpc stream");
+                        info!("Transaction from RPC stream: {}", txn);
                         let log = TransactionLog {
                             signature: tx.signature,
                             raw_transaction: tx.transaction,
@@ -113,44 +111,5 @@ impl MempoolMonitor {
             // Wait before next poll
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
-    }
-
-    // Websocket-based real-time monitoring
-    async fn monitor_websocket_stream(
-        solana_config: &SolanaConfig,
-        ws_url: String,
-        sender: mpsc::Sender<TransactionLog>
-    ) -> Result<(), MempoolError> {
-        let ws_client = WebSocketClient::new(&ws_url)
-            .await
-            .map_err(|e| MempoolError::WebsocketError(e.to_string()))?;
-
-        let mut logs_stream = ws_client.logs_subscribe(
-            RpcTransactionLogsFilter::All,
-            RpcTransactionLogsConfig::default()
-        ).await.map_err(|e| MempoolError::WebsocketError(e.to_string()))?;
-
-        info!("Monitoring websocket stream");
-        while let Some(log_result) = logs_stream.next().await {
-            match log_result {
-                Ok(log_entry) => {
-                    // Convert log entry to TransactionLog
-                    let log = TransactionLog {
-                        signature: log_entry.signature,
-                        raw_transaction: log_entry.transaction,
-                        timestamp: chrono::Utc::now().timestamp() as u64,
-                    };
-
-                    // Send transaction log
-                    let _ = sender.send(log).await;
-                },
-                Err(e) => {
-                    eprintln!("Websocket error: {:?}", e);
-                    break;
-                }
-            }
-        }
-
-        Err(MempoolError::WebsocketError("Connection lost".to_string()))
     }
 }

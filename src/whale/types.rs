@@ -37,6 +37,7 @@ pub enum TradeType {
         amount: f64,
         price: f64
     },
+    #[default]
     Unknown,
 }
 
@@ -48,5 +49,7 @@ pub enum MovementType {
         amount: f64,
         price: f64,
     },
+    #[default]
+    Unknown,
     // Add other movement types if needed
 }

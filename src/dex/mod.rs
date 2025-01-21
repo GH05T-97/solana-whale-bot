@@ -1,8 +1,11 @@
-pub mod protocols;
+pub mod protocols {
+    pub mod jupiter;
+    pub mod raydium;
+}
 pub mod analyzer;
 pub mod types;  // Change from 'mod types;' to 'pub mod types;'
 
-pub use protocols::{
+use protocols::{
     jupiter::JupiterProtocol,
     raydium::RaydiumProtocol,
 };

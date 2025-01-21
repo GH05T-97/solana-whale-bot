@@ -21,6 +21,7 @@ pub struct DexTransaction {
 pub enum DexProtocol {
     Jupiter,
     Raydium,
+    #[default]
     Unknown
 }
 
@@ -36,6 +37,7 @@ pub enum TradeType {
         amount: u64,
         price: f64,
     },
+    #[default]
     Unknown,
 }
 

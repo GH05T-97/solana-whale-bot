@@ -8,7 +8,7 @@ edition = "2021"
 tokio = { version = "1.28", features = ["full"] }
 # Solana SDK
 solana-sdk = "1.16"
-solana-client = "1.16"
+solana-client = "1.18"
 solana-program = "1.18.x"
 # HTTP client
 reqwest = { version = "0.11", features = ["json"] }

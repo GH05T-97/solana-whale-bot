@@ -6,8 +6,6 @@ use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
 use std::env;
 use log::{info, warn, error, debug};
-
-use tokio::sync::RwLock;
 use super::{
     config::WhaleConfig,
     types::{Transaction, WhaleMovement, MovementType},
@@ -15,6 +13,7 @@ use super::{
     mempool::MempoolMonitor,
 
 };
+use std::collections::VecDeque;
 
 use crate::dex::types::{DexTransaction, TradeType, DexProtocol, DexTrade};
 use crate::dex::DexAnalyzer;
@@ -28,10 +27,6 @@ use crate::strategy::types::{
 };
 use crate::strategy::StrategyAnalyzer;
 use rust_decimal::Decimal;
-
-
-use rust_decimal::Decimal;
-use crate::SolanaConfig;
 
 #[derive(Clone)]
 struct PendingTransaction {
@@ -70,16 +65,17 @@ impl WhaleDetector {
 
         let wallet_env = env::var("WALLET_KEYPAIR_PATH").expect("WALLET_KEYPAIR_PATH must be set");
         let solana_config = SolanaConfig::mainnet_default(wallet_env);
+        let (mempool, _tx_sender) = MempoolMonitor::new(solana_config.clone());
 
         Self {
             config,
             recent_movements,
             known_whales,
             cache: WhaleCache::new(),
-            mempool: MempoolMonitor::new(solana_config), /// change the paramters
+            mempool, /// change the paramters
             dex_analyzer: DexAnalyzer::new(),
             strategy_analyzer: StrategyAnalyzer::new(strategy_config),
-            trade_executor
+            trade_executor: TradeExecutor::new(solana_config.clone())
         }
     }
 
@@ -113,7 +109,8 @@ impl WhaleDetector {
 
     async fn analyze_transaction(&self, transaction: Transaction) -> Option<WhaleMovement> {
         // Check if it's a whale transaction
-        info!("analysing transaction", transaction);
+        info!("analysing transaction");
+        info!("{}", transaction);
         if !self.is_whale_transaction(&transaction).await {
             return None;
         }
@@ -121,8 +118,8 @@ impl WhaleDetector {
         // Convert and analyze DEX transaction
         let dex_transaction = DexTransaction::from(transaction.clone());
         let dex_trade = self.dex_analyzer.analyze_transaction(dex_transaction).await?;
-        info!(dex_transaction, "DEX TRANSACTION");
-        info!(dex_trade, "DEX TRADE");
+        info!("{} {}", "DEX TRANSACTION", dex_transaction);
+        info!("{} {}", "DEX TRADE", dex_trade);
 
         // Get whale address and calculate confidence
         let (whale_address, confidence) = tokio::join!(
@@ -146,7 +143,7 @@ impl WhaleDetector {
             },
             TradeType::Unknown => return None, // Skip non-DEX trades
         };
-        info!(movement_type, "MOVEMENT TYPE");
+        info!("{}", "MOVEMENT TYPE", movement_type);
 
         // Cache the results
         self.cache.update_whale_data(
@@ -160,6 +157,7 @@ impl WhaleDetector {
             whale_address,
             movement_type,
             confidence,
+            price
         })
     }
 

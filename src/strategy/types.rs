@@ -8,6 +8,7 @@ use chrono::{DateTime, Utc};
 
 #[derive(Clone, Debug, Default)]
 pub enum TradeDirection {
+    #[default]
     Long,
     Short,
 }

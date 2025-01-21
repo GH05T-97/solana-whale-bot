@@ -7,7 +7,6 @@ pub mod strategy;
 use tokio;
 use log::{info, error};
 use dotenv::dotenv;
-use whale::WhaleConfig;
 use std::env;
 
 // Import necessary components
