@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct DexTransaction {
     pub signature: String,
     pub program_id: Pubkey,
@@ -17,13 +17,13 @@ pub struct DexTransaction {
     pub amount_out: Option<u64>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub enum DexProtocol {
     Jupiter,
     Raydium,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub enum TradeType {
     Buy {
         token: Pubkey,
@@ -38,7 +38,7 @@ pub enum TradeType {
     Unknown,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct DexTrade {
     pub protocol: DexProtocol,
     pub trade_type: TradeType,

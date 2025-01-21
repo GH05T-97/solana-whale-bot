@@ -33,6 +33,7 @@ use crate::execution::types::{
 
 use crate::SolanaConfig;
 
+#[derive(Clone, Debug, Default)]
 pub struct TradeExecutor {
     solana_config: SolanaConfig,
     client: RpcClient,

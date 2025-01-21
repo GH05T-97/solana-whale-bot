@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct JupiterSwapParams {
     pub in_amount: u64,
     pub out_amount: u64,

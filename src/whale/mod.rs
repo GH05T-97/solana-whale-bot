@@ -1,8 +1,8 @@
-mod config;
-mod detector;
-mod types;
-mod cache;
-mod mempool;
+pub mod config;
+pub mod detector;
+pub mod types;
+pub mod cache;
+pub mod mempool;
 
 
 pub use config::WhaleConfig;

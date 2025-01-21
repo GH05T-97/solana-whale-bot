@@ -1,10 +1,10 @@
-mod execution;
-mod strategy;
-mod whale;
-mod solana_config;
+pub mod execution;
+pub mod strategy;
+pub mod whale;
+pub mod solana_config;
 
 // Optional: re-export key types if needed
-mod dex;
+pub mod dex;
 
 pub use solana_config::SolanaConfig;
 

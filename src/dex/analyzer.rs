@@ -8,6 +8,7 @@ use crate::dex::protocols::{
     RAYDIUM_PROGRAM_ID,
 };
 
+#[derive(Clone, Debug, Default)]
 pub struct DexAnalyzer {
     supported_dexes: HashSet<Pubkey>,
 }

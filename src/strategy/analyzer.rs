@@ -6,8 +6,6 @@ use super::types::{StrategyConfig, RiskParams};
 use tokio::sync::RwLock;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
-// Common imports to add
-use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::collections::{HashMap, HashSet};
 use solana_sdk::pubkey::Pubkey;
@@ -29,6 +27,7 @@ impl RiskManager {
     }
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct StrategyAnalyzer {
     config: StrategyConfig,
     risk_manager: Arc<RiskManager>,

@@ -6,7 +6,7 @@ use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Transaction {
     pub signature: String,
     pub from_address: String,
@@ -16,7 +16,7 @@ pub struct Transaction {
     pub block_number: u64,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct WhaleMovement {
     pub transaction: Transaction,
     pub whale_address: String,
@@ -24,7 +24,7 @@ pub struct WhaleMovement {
     pub confidence: f64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub enum TradeType {
     Buy {
         token: Pubkey,
@@ -39,7 +39,7 @@ pub enum TradeType {
     Unknown,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub enum MovementType {
     TokenSwap {
         action: String,

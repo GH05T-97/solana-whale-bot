@@ -23,8 +23,6 @@ use thiserror::Error;
 use futures::StreamExt;
 use crate::SolanaConfig;
 
-// Common imports to add
-use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::collections::{HashMap, HashSet};
 use solana_sdk::pubkey::Pubkey;
@@ -49,6 +47,7 @@ pub enum MempoolError {
     TimeoutError(String),
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct MempoolMonitor {
     solana_config: SolanaConfig,
     rpc_urls: Vec<String>,

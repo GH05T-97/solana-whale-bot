@@ -7,4 +7,7 @@ pub use types::{
     StrategyConfig,
     RiskParams,
     TradeSignal,
+    TradeDirection,
+    TradeInfo,
+    PortfolioState,
 };

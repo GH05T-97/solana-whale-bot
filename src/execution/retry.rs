@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct RetryConfig {
     pub max_attempts: u32,
     pub initial_delay: Duration,
@@ -33,6 +33,7 @@ impl Default for RetryConfig {
     }
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct RetryHandler {
     config: RetryConfig,
 }

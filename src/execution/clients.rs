@@ -7,11 +7,13 @@ use std::collections::{HashMap, HashSet};
 use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
 
+#[derive(Clone, Debug, Default)]
 pub struct JupiterApiClient {
     base_url: String,
     http_client: reqwest::Client,
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct RaydiumApiClient {
     base_url: String,
     http_client: reqwest::Client,

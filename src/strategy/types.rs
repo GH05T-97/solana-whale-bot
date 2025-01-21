@@ -6,13 +6,13 @@ use std::collections::{HashMap, HashSet};
 use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub enum TradeDirection {
     Long,
     Short,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct TradeSignal {
     pub direction: TradeDirection,
     pub token: Pubkey,

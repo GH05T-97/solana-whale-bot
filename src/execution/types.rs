@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct OrderRequest {
     pub token: Pubkey,
     pub direction: OrderDirection,
@@ -18,26 +18,26 @@ pub struct OrderRequest {
     pub take_profit: Option<Decimal>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OrderDirection {
     Buy,
     Sell,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OrderType {
     Market,
     Limit(Decimal),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TimeInForce {
     GoodTilCancelled,
     ImmediateOrCancel,
     FillOrKill,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum OrderStatus {
     New,
     PartiallyFilled { filled_amount: Decimal },
@@ -46,7 +46,7 @@ pub enum OrderStatus {
     Failed { reason: String },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct OrderResult {
     pub order_id: String,
     pub status: OrderStatus,
@@ -55,7 +55,7 @@ pub struct OrderResult {
     pub timestamp: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, Default)]
 pub struct Fill {
     pub price: Decimal,
     pub size: Decimal,
@@ -63,13 +63,14 @@ pub struct Fill {
     pub fee: Decimal,
 }
 
+#[derive(Clone, Debug, Default)]
 pub struct SwapParams {
     pub input_mint: Pubkey,
     pub output_mint: Pubkey,
     pub amount: u64,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum DexType {
     Jupiter,
     Raydium,

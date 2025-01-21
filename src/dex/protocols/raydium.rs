@@ -6,7 +6,7 @@ use std::collections::{HashMap, HashSet};
 use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct RaydiumSwapParams {
     pub amount_in: u64,
     pub min_amount_out: u64,
