@@ -31,6 +31,9 @@ jobs:
     - name: Run Clippy
       run: cargo clippy -- -D warnings
 
+    - name: Fix Rust code
+      run: cargo fix --allow-dirty --allow-staged
+
   deploy:
     name: Deploy to AWS ECS
     runs-on: ubuntu-latest
