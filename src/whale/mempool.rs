@@ -45,7 +45,7 @@ pub enum MempoolError {
     TimeoutError(String),
 }
 
-#[derive(Debug)]
+#[derive(Clone)]
 pub struct MempoolMonitor {
     solana_config: SolanaConfig,
     rpc_urls: Vec<String>,
@@ -77,38 +77,42 @@ impl MempoolMonitor {
         }
     }
 
-    // RPC-based transaction monitoring
-    async fn monitor_rpc_stream(
-        solana_config: &SolanaConfig,
-        rpc_url: String,
-        sender: mpsc::Sender<TransactionLog>
-    ) -> Result<(), MempoolError> {
-        let rpc_client = solana_config.create_rpc_client();
+    /// Start monitoring the mempool using RPC
+    pub async fn monitor_mempool(&self) -> Result<(), MempoolError> {
+        let rpc_client = self.solana_config.create_rpc_client();
 
-        info!("Monitoring rpc stream");
+        info!("Starting mempool monitoring");
         loop {
-            // Fetch recent transactions
-            match rpc_client.get_recent_transactions().await {
-                Ok(transactions) => {
-                    for tx in transactions {
-                        info!("Transaction from RPC stream: {}", txn);
-                        let log = TransactionLog {
-                            signature: tx.signature,
-                            raw_transaction: tx.transaction,
-                            timestamp: chrono::Utc::now().timestamp() as u64,
-                        };
+            // Fetch recent blockhashes and transactions
+            match rpc_client.get_recent_blockhash().await {
+                Ok((blockhash, _)) => {
+                    // Fetch transactions for the latest blockhash
+                    match rpc_client.get_block(blockhash).await {
+                        Ok(block) => {
+                            for tx in block.transactions {
+                                let log = TransactionLog {
+                                    signature: tx.transaction.signatures[0],
+                                    raw_transaction: tx.transaction,
+                                    timestamp: chrono::Utc::now().timestamp() as u64,
+                                };
 
-                        // Send transaction log
-                        let _ = sender.send(log).await;
+                                // Send transaction log
+                                if let Err(e) = self.transaction_sender.send(log).await {
+                                    error!("Failed to send transaction log: {:?}", e);
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("Failed to fetch block: {:?}", e);
+                        }
                     }
-                },
+                }
                 Err(e) => {
-                    eprintln!("RPC transaction fetch error: {:?}", e);
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    error!("Failed to fetch recent blockhash: {:?}", e);
                 }
             }
 
-            // Wait before next poll
+            // Wait before the next poll
             tokio::time::sleep(Duration::from_secs(1)).await;
         }
     }

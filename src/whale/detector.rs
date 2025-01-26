@@ -1,30 +1,24 @@
 // Common imports to add
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
 use std::env;
 use log::{info, warn, error, debug};
+use tokio::sync::mpsc;
+use lru::LruCache;
 use super::{
     config::WhaleConfig,
-    types::{Transaction, WhaleMovement, MovementType},
     cache::WhaleCache,
     mempool::MempoolMonitor,
-
 };
-use std::collections::VecDeque;
-
+use crate::whale::types::{Transaction, WhaleMovement, MovementType};
 use crate::dex::types::{DexTransaction, TradeType, DexProtocol, DexTrade};
 use crate::dex::DexAnalyzer;
-
 use crate::execution::TradeExecutor;
 use crate::solana_config::SolanaConfig;
-use crate::strategy::types::{
-    StrategyConfig,
-    RiskParams,
-    TradeSignal
-};
+use crate::strategy::types::{StrategyConfig, RiskParams, TradeSignal};
 use crate::strategy::StrategyAnalyzer;
 use rust_decimal::Decimal;
 
@@ -46,10 +40,11 @@ pub struct WhaleDetector {
     dex_analyzer: DexAnalyzer,
     strategy_analyzer: StrategyAnalyzer,
     trade_executor: TradeExecutor,
+    rx: mpsc::Receiver<Transaction>,
 }
 
 impl WhaleDetector {
-    pub fn new(config: WhaleConfig) -> Self {
+    pub fn new(config: WhaleConfig, rx: mpsc::Receiver<Transaction>) -> Self {
         let known_whales = Arc::new(RwLock::new(config.tracked_addresses.clone()));
         let recent_movements = Arc::new(RwLock::new(VecDeque::with_capacity(1000)));
 
@@ -72,10 +67,11 @@ impl WhaleDetector {
             recent_movements,
             known_whales,
             cache: WhaleCache::new(),
-            mempool, /// change the paramters
+            mempool,
             dex_analyzer: DexAnalyzer::new(),
             strategy_analyzer: StrategyAnalyzer::new(strategy_config),
-            trade_executor: TradeExecutor::new(solana_config.clone())
+            trade_executor: TradeExecutor::new(solana_config.clone()),
+            rx,
         }
     }
 
@@ -94,9 +90,8 @@ impl WhaleDetector {
     }
 
     pub async fn process_transactions(&self) {
-
         info!("processing transactions");
-        while let Ok(transaction) = rx.recv().await {
+        while let Ok(transaction) = self.rx.recv().await {
             // Process confirmed transactions in parallel
             let detector = self.clone();
             tokio::spawn(async move {
@@ -110,7 +105,7 @@ impl WhaleDetector {
     async fn analyze_transaction(&self, transaction: Transaction) -> Option<WhaleMovement> {
         // Check if it's a whale transaction
         info!("analysing transaction");
-        info!("{}", transaction);
+        info!("{:?}", transaction);
         if !self.is_whale_transaction(&transaction).await {
             return None;
         }
@@ -118,11 +113,11 @@ impl WhaleDetector {
         // Convert and analyze DEX transaction
         let dex_transaction = DexTransaction::from(transaction.clone());
         let dex_trade = self.dex_analyzer.analyze_transaction(dex_transaction).await?;
-        info!("{} {}", "DEX TRANSACTION", dex_transaction);
-        info!("{} {}", "DEX TRADE", dex_trade);
+        info!("DEX TRANSACTION: {:?}", dex_transaction);
+        info!("DEX TRADE: {:?}", dex_trade);
 
         // Get whale address and calculate confidence
-        let (whale_address, confidence) = tokio::join!(
+        let (whale_address, confidence): (String, f64) = tokio::join!(
             self.determine_whale_address(&transaction),
             self.calculate_confidence(&transaction)
         );
@@ -132,24 +127,23 @@ impl WhaleDetector {
             TradeType::Buy { token, amount, price } => MovementType::TokenSwap {
                 action: "buy".to_string(),
                 token_address: token,
-                amount,
+                amount: amount as f64,
                 price,
             },
             TradeType::Sell { token, amount, price } => MovementType::TokenSwap {
                 action: "sell".to_string(),
                 token_address: token,
-                amount,
+                amount: amount as f64,
                 price,
             },
             TradeType::Unknown => return None, // Skip non-DEX trades
         };
-        info!("{}", "MOVEMENT TYPE", movement_type);
+        info!("Movement Type: {:?}", movement_type);
 
         // Cache the results
-        self.cache.update_whale_data(
+        self.cache.update_cache(
             &whale_address,
             movement_type.clone(),
-            confidence
         ).await;
 
         Some(WhaleMovement {
@@ -157,19 +151,9 @@ impl WhaleDetector {
             whale_address,
             movement_type,
             confidence,
-            price
+            price: dex_trade.price,
         })
     }
-
-    // async fn handle_pending_transaction(&self, pending_tx: PendingTransaction) {
-    //     if self.is_potential_whale_transaction(&pending_tx).await {
-    //         // Pre-warm cache
-    //         self.cache.preload_data(&pending_tx).await;
-
-    //         // Notify subscribers of potential whale movement
-    //         self.notify_pending_movement(&pending_tx).await;
-    //     }
-    // }
 
     async fn handle_whale_movement(&self, movement: WhaleMovement) {
         // Update recent movements
@@ -180,9 +164,6 @@ impl WhaleDetector {
         while movements.len() > 1000 {
             movements.pop_back();
         }
-
-        // Update cache with confirmed movement
-        self.cache.update_movement_history(movement.clone()).await;
 
         // Generate trade signal using strategy analyzer
         if let Some(trade_signal) = self.strategy_analyzer.analyze_whale_movement(&movement).await {
@@ -208,6 +189,7 @@ impl WhaleDetector {
                     }
                 }
             });
+        }
     }
 
     pub async fn is_whale_transaction(&self, transaction: &Transaction) -> bool {
@@ -223,7 +205,7 @@ impl WhaleDetector {
         // Update cache
         self.cache.set_whale_status(&transaction.from_address, is_whale).await;
 
-        return is_whale
+        is_whale
     }
 
     async fn determine_whale_address(&self, transaction: &Transaction) -> String {
@@ -261,36 +243,4 @@ impl WhaleDetector {
 
         confidence
     }
-
-    // async fn is_potential_whale_transaction(&self, pending_tx: &PendingTransaction) -> bool {
-    //     // Quick check using cached data
-    //     if let Some(is_whale) = self.cache.get_whale_status(&pending_tx.from_address).await {
-    //         return is_whale && pending_tx.amount >= self.config.minimum_transaction;
-    //     }
-
-    //     let known_whales = self.known_whales.read().await;
-    //     known_whales.contains(&pending_tx.from_address) &&
-    //     pending_tx.amount >= self.config.minimum_transaction
-    // }
-
-    // async fn notify_pending_movement(&self, pending_tx: &PendingTransaction) {
-    //     // Implementation for notifying about potential whale movements
-    //     // This could be used for even faster reaction times
-    // }
-
-    // pub async fn add_whale(&self, address: String) {
-    //     let mut known_whales = self.known_whales.write().await;
-    //     known_whales.insert(address.clone());
-    //     self.cache.set_whale_status(&address, true).await;
-    // }
-
-    // pub async fn remove_whale(&self, address: &str) {
-    //     let mut known_whales = self.known_whales.write().await;
-    //     known_whales.remove(address);
-    //     self.cache.set_whale_status(address, false).await;
-    // }
-
-    // pub async fn get_recent_movements(&self) -> Vec<WhaleMovement> {
-    //     self.recent_movements.read().await.iter().cloned().collect()
-    // }
-}}
+}
