@@ -28,7 +28,7 @@ jobs:
         toolchain: stable
         components: clippy
 
- - name: Fix Rust code
+    - name: Fix Rust code
       run: cargo fix --allow-dirty --allow-staged
 
     - name: Run Clippy
