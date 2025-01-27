@@ -26,7 +26,7 @@ pub enum TradeSubmissionError {
     NetworkCongestion,
 }
 
-#[derive(Clone, Debug, PartialEq, Error)]
+#[derive(Error, Debug)]
 pub enum ExecutionError {
     #[error("RPC error: {0}")]
     RpcError(String),
@@ -63,6 +63,19 @@ pub enum ExecutionError {
 
     #[error("Order rejected: {0}")]
     OrderRejected(String),
+
+    // Added variants
+    #[error("No liquidity available: {0}")]
+    NoLiquidityAvailable(String),
+
+    #[error("Transaction failed: {0}")]
+    TransactionFailed(String),
+
+    #[error("Failed to fetch blockhash: {0}")]
+    BlockhashFetchFailed(String),
+
+    #[error("Validation failed: {0}")]
+    ValidationFailed(String)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -92,6 +105,10 @@ impl ExecutionError {
             ExecutionError::SlippageExceeded { .. } => ExecutionErrorType::SlippageExceeded,
             ExecutionError::HighPriceImpact(_) => ExecutionErrorType::HighPriceImpact,
             ExecutionError::OrderRejected(_) => ExecutionErrorType::OrderRejected,
+            ExecutionError::NoLiquidityAvailable(_) => ExecutionErrorType::NoLiquidityAvailable,
+            ExecutionError::TransactionFailed(_) => ExecutionErrorType::TransactionFailed,
+            ExecutionError::BlockhashFetchFailed(_) => ExecutionErrorType::BlockhashFetchFailed,
+            ExecutionError::ValidationFailed(_) => ExcutionErrorType::ValidationFailed,
         }
     }
 

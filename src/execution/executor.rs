@@ -5,31 +5,35 @@ use solana_sdk::{
     signature::Signature,
     pubkey::Pubkey,
     signer::Signer,
+    signer::keypair::Keypair,
 };
 use std::time::{Duration, Instant};
 use thiserror::Error;
 use log::{error, info, warn};
+use rust_decimal::Decimal;
 
 use crate::execution::clients::{
     JupiterApiClient,
     RaydiumApiClient,
 };
 
-
-use crate::strategy::types::TradeSignal;
-
-// Common imports to add
-use std::sync::Arc;
-use tokio::sync::RwLock;
-use std::collections::{HashMap, HashSet};
-use chrono::{DateTime, Utc};
-
+use crate::strategy::types::{TradeSignal, TradeDirection};
 use crate::execution::types::{
     OrderRequest,
     OrderResult,
     SwapParams,
-    DexType
+    DexType,
+    OrderDirection,
+    OrderType,
+    TimeInForce,
+    OrderStatus,
 };
+
+// Common imports
+use std::sync::Arc;
+use tokio::sync::RwLock;
+use std::collections::{HashMap, HashSet};
+use chrono::{DateTime, Utc};
 
 use crate::execution::{
     ExecutionError,
@@ -39,7 +43,9 @@ use crate::execution::{
 
 use crate::SolanaConfig;
 
-const USDC_MINT: Pubkey = "FSxJ85FXVsXSr51SeWf9ciJWTcRnqKFSmBgRDeL3KyWw";
+const USDC_MINT: Pubkey = Pubkey::new_from_array([/* your USDC mint bytes */]); // Replace with actual USDC mint bytes
+const SOL_MINT: Pubkey = Pubkey::new_from_array([/* your SOL mint bytes */]); // Add SOL mint constant
+
 pub struct JupiterSwapParams {
     pub in_amount: u64,
     pub out_amount: u64,
@@ -53,12 +59,9 @@ pub struct RaydiumSwapParams {
     pub pool_id: Pubkey,
 }
 
-// Define the Position type if not already defined somewhere
 pub struct Position {
-    // Add your position fields
     pub token_mint: Pubkey,
     pub amount: u64,
-    // ... other fields
 }
 
 #[derive(Clone)]
@@ -66,7 +69,6 @@ pub struct TokenAvailability {
     pub jupiter_available: bool,
     pub raydium_available: bool,
 }
-
 
 #[derive(Clone, Debug, Default)]
 pub struct TradeExecutor {
@@ -88,7 +90,7 @@ impl TradeExecutor {
             solana_config: solana_config.clone(),
             orders: Arc::new(RwLock::new(HashMap::new())),
             active_positions: Arc::new(RwLock::new(HashMap::new())),
-            keypair: solana_config.keypair.clone(), // Use keypair from SolanaConfig
+            keypair: solana_config.keypair.clone(),
             retry_handler: RetryHandler::new(RetryConfig::default()),
             token_availability_cache: Arc::new(RwLock::new(HashMap::new())),
             jupiter_client: JupiterApiClient::new(),
@@ -97,7 +99,6 @@ impl TradeExecutor {
     }
 
     async fn check_token_availability(&self, token_mint: &Pubkey) -> Result<TokenAvailability, ExecutionError> {
-        // Check cache first
         {
             let cache = self.token_availability_cache.read().await;
             if let Some(availability) = cache.get(token_mint) {
@@ -105,7 +106,6 @@ impl TradeExecutor {
             }
         }
 
-        // If not in cache, perform availability checks
         let jupiter_available = self.check_jupiter_token_availability(token_mint).await?;
         let raydium_available = self.check_raydium_token_availability(token_mint).await?;
 
@@ -114,7 +114,6 @@ impl TradeExecutor {
             raydium_available,
         };
 
-        // Update cache
         {
             let mut cache = self.token_availability_cache.write().await;
             cache.insert(*token_mint, availability.clone());
@@ -135,22 +134,20 @@ impl TradeExecutor {
     }
 
     async fn check_raydium_token_availability(&self, token_mint: &Pubkey) -> Result<bool, ExecutionError> {
-        match self.raydium_client.get_liquidity(*token_mint).await {
+        match self.raydium_client.get_liquidity_pool(*token_mint).await {
             Ok(liquidity) if liquidity.total_liquidity > 0 => Ok(true),
             _ => Ok(false)
         }
     }
 
-    // Determine best DEX for trading
     async fn select_best_dex(&self, token_mint: &Pubkey) -> Result<DexType, ExecutionError> {
         let availability = self.check_token_availability(token_mint).await?;
 
-        // Prioritization logic
         match (availability.jupiter_available, availability.raydium_available) {
-            (true, true) => Ok(DexType::Jupiter),  // Prefer Jupiter by default
+            (true, true) => Ok(DexType::Jupiter),
             (true, false) => Ok(DexType::Jupiter),
             (false, true) => Ok(DexType::Raydium),
-            (false, false) => Err(ExecutionError::TokenNotAvailable(
+            (false, false) => Err(ExecutionError::NoLiquidityAvailable(
                 "Token not available on either Jupiter or Raydium".to_string()
             ))
         }
@@ -158,63 +155,45 @@ impl TradeExecutor {
 
     async fn submit_transaction(&self, transaction: Transaction) -> Result<Signature, ExecutionError> {
         self.client
-            .send_and_confirm_transaction(&transaction)
-            .await
-            .map_err(|e| ExecutionError::TransactionSubmissionError(e.to_string()))
+            .send_and_confirm_transaction_with_spinner(&transaction)
+            .map_err(|e| ExecutionError::TransactionFailed(e.to_string()))
     }
 
-    // Execute trade method
     pub async fn execute_trade(&self, signal: TradeSignal) -> Result<OrderResult, ExecutionError> {
-        // Determine which DEX has the token available
         let dex_type = self.select_best_dex(&signal.token).await?;
+        let order_request = self.prepare_order_request(signal).await?;
 
-        // Prepare order request
-        let mut order_request = self.prepare_order_request(signal).await?;
-        order_request.dex_type = Some(dex_type);
-
-        // Validate order
         self.validate_order(&order_request).await?;
 
-        // Create transaction based on DEX
         let transaction = match dex_type {
             DexType::Jupiter => self.create_jupiter_transaction(&order_request).await?,
             DexType::Raydium => self.create_raydium_transaction(&order_request).await?,
         };
 
-        // Submit transaction to Solana network
         let signature = self.submit_transaction(transaction).await?;
 
-        // Return order result
         Ok(OrderResult {
             order_id: signature.to_string(),
             status: OrderStatus::Filled,
-            fills: Vec::new(), // Empty vector
-            average_price: 0.00, // Use None for Optional<Decimal>
-            timestamp: Utc::now(), // Use Utc::now() instead of DateTime::now()
+            fills: Vec::new(),
+            average_price: None,
+            timestamp: Utc::now(),
         })
     }
 
-    // Execute trade on Jupiter
-    // Create transaction for Jupiter swap
     async fn create_jupiter_transaction(&self, order_request: &OrderRequest) -> Result<Transaction, ExecutionError> {
-        let jupiter_client = JupiterApiClient::new();
-
-        // Prepare swap parameters
         let swap_params = SwapParams {
             input_mint: USDC_MINT,
-            output_mint: order_request.output_token,
-            amount: order_request.amount,
+            output_mint: order_request.token,
+            amount: order_request.size,
         };
 
-        // Get swap instruction
-        let swap_instruction = jupiter_client.get_swap_instruction(&swap_params).await?;
+        let swap_instruction = self.jupiter_client.get_swap_instruction(&swap_params).await?;
 
-        // Get recent blockhash
-        let recent_blockhash = self.client.get_latest_blockhash()
-            .await
-            .map_err(|e| ExecutionError::BlockhashError(e.to_string()))?;
+        let recent_blockhash = self.client
+            .get_latest_blockhash()
+            .map_err(|e| ExecutionError::BlockhashFetchFailed(e.to_string()))?;
 
-        // Create and sign transaction
         Ok(Transaction::new_signed_with_payer(
             &[swap_instruction],
             Some(&self.keypair.pubkey()),
@@ -223,69 +202,56 @@ impl TradeExecutor {
         ))
     }
 
-    // Execute trade on Raydium
-   // Similar method for Raydium transaction creation
-   async fn create_raydium_transaction(&self, order_request: &OrderRequest) -> Result<Transaction, ExecutionError> {
-    let raydium_client = RaydiumSwapClient::new();
+    async fn create_raydium_transaction(&self, order_request: &OrderRequest) -> Result<Transaction, ExecutionError> {
+        let swap_params = RaydiumSwapParams {
+            pool_id: SOL_MINT,
+            amount_in: order_request.size,
+            min_amount_out: self.calculate_min_output_amount(order_request),
+        };
 
-    // Prepare swap parameters
-    let swap_params = RaydiumSwapParams {
-        pool_id: SOL_MINT,
-        amount_in: order_request.amount,
-        min_amount_out: self.calculate_min_output_amount(order_request),
-    };
+        let swap_instruction = self.raydium_client.get_swap_instruction(&swap_params).await?;
 
-    // Get swap instruction
-    let swap_instruction = raydium_client.get_swap_instruction(&swap_params).await?;
+        let recent_blockhash = self.client
+            .get_latest_blockhash()
+            .map_err(|e| ExecutionError::BlockhashFetchFailed(e.to_string()))?;
 
-    // Get recent blockhash
-    let recent_blockhash = self.client.get_latest_blockhash()
-        .await
-        .map_err(|e| ExecutionError::BlockhashError(e.to_string()))?;
-
-    // Create and sign transaction
-    Ok(Transaction::new_signed_with_payer(
-        &[swap_instruction],
-        Some(&self.keypair.pubkey()),
-        &[&self.keypair],
-        recent_blockhash
-    ))
-}
-
-    // Helper method to calculate minimum output amount
-    fn calculate_min_output_amount(&self, request: &OrderRequest) -> u64 {
-        // Apply slippage protection
-        let slippage_factor = 0.99; // 1% slippage tolerance
-        (request.amount as f64 * slippage_factor) as u64
+        Ok(Transaction::new_signed_with_payer(
+            &[swap_instruction],
+            Some(&self.keypair.pubkey()),
+            &[&self.keypair],
+            recent_blockhash
+        ))
     }
 
-    // Validate order parameters
+    fn calculate_min_output_amount(&self, request: &OrderRequest) -> u64 {
+        let slippage_factor = Decimal::new(99, 2); // 0.99 as Decimal
+        let min_amount = request.size * slippage_factor;
+        min_amount.to_u64().unwrap_or(0)
+    }
+
     async fn validate_order(&self, order_request: &OrderRequest) -> Result<(), ExecutionError> {
-        // Check basic order validation
-        if order_request.amount == 0 {
-            return Err(ExecutionError::ValidationError(
-                "Trade amount cannot be zero".to_string()
+        if order_request.size == 0 {
+            return Err(ExecutionError::ValidationFailed(
+                "Trade size cannot be zero".to_string()
             ));
         }
 
-        // Additional validation can be added here
         Ok(())
     }
 
-    // Prepare order request from trade signal
     async fn prepare_order_request(&self, signal: TradeSignal) -> Result<OrderRequest, ExecutionError> {
         Ok(OrderRequest {
-            token: signal.token, // Use the token from trade signal
+            token: signal.token,
             direction: match signal.direction {
                 TradeDirection::Long => OrderDirection::Buy,
                 TradeDirection::Short => OrderDirection::Sell,
             },
             size: signal.size,
-            price: signal.entry_price, // Use entry price from trade signal
-            order_type: OrderType::Market, // Or determine based on signal
-            time_in_force: TimeInForce::GoodTilCancelled, // Default or from configuration
-            stop_loss: Some(signal.stop_loss),
-            take_profit: Some(signal.take_profit),
+            price: signal.entry_price,
+            order_type: OrderType::Market,
+            time_in_force: TimeInForce::GoodTilCancelled,
+            stop_loss: signal.stop_loss,
+            take_profit: signal.take_profit,
         })
     }
 }
