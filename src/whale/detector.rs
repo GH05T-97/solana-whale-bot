@@ -1,10 +1,10 @@
-// Common imports to add
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::collections::{HashSet, VecDeque};
 use std::env;
 use log::{info, warn, error, debug};
 use tokio::sync::mpsc;
+use solana_sdk::signer::keypair::Keypair;
 use super::{
     config::WhaleConfig,
     cache::WhaleCache,
@@ -33,7 +33,7 @@ pub struct WhaleDetector {
     recent_movements: Arc<RwLock<VecDeque<WhaleMovement>>>,
     known_whales: Arc<RwLock<HashSet<String>>>,
     cache: WhaleCache,
-    mempool: MempoolMonitor,
+    mempool: Arc<MempoolMonitor>, // Wrap in Arc since MempoolMonitor isn't Clone
     dex_analyzer: DexAnalyzer,
     strategy_analyzer: StrategyAnalyzer,
     trade_executor: TradeExecutor,
@@ -45,19 +45,22 @@ impl WhaleDetector {
         let known_whales = Arc::new(RwLock::new(config.tracked_addresses.clone()));
         let recent_movements = Arc::new(RwLock::new(VecDeque::with_capacity(1000)));
 
-        // Initialize strategy config with our 1 SOL parameters
         let strategy_config = StrategyConfig {
             risk_params: RiskParams::default(),
-            min_whale_success_rate: 0.6,
+            min_whale_success_rate: Decimal::new(60, 2), // 0.60
             min_liquidity: Decimal::new(1000000000, 9), // 1 SOL minimum liquidity
             max_slippage: Decimal::new(2, 2),           // 2% max slippage
             max_price_impact: Decimal::new(1, 2),       // 1% max price impact
             total_portfolio_sol: Decimal::new(1000000000, 9), // 1 SOL portfolio
         };
 
-        let wallet_env = env::var("WALLET_KEYPAIR_PATH").expect("WALLET_KEYPAIR_PATH must be set");
-        let solana_config = SolanaConfig::mainnet_default(wallet_env);
+        let wallet_path = env::var("WALLET_KEYPAIR_PATH").expect("WALLET_KEYPAIR_PATH must be set");
+        let keypair = Keypair::read_from_file(&wallet_path)
+            .expect("Failed to read keypair from file");
+        let solana_config = SolanaConfig::mainnet_default(keypair);
+
         let (mempool, _tx_sender) = MempoolMonitor::new(solana_config.clone());
+        let mempool = Arc::new(mempool);
 
         Self {
             config,
@@ -67,29 +70,27 @@ impl WhaleDetector {
             mempool,
             dex_analyzer: DexAnalyzer::new(),
             strategy_analyzer: StrategyAnalyzer::new(strategy_config),
-            trade_executor: TradeExecutor::new(solana_config.clone()),
+            trade_executor: TradeExecutor::new(solana_config),
             rx,
         }
     }
 
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        // Start mempool monitoring
         info!("Starting mempool monitoring");
-        let mempool_clone = self.mempool.clone();
+        let mempool = self.mempool.clone();
         tokio::spawn(async move {
-            mempool_clone.monitor_mempool().await;
+            if let Err(e) = mempool.monitor_mempool().await {
+                error!("Mempool monitoring error: {:?}", e);
+            }
         });
 
-        // Start transaction processing
         self.process_transactions().await;
-
         Ok(())
     }
 
     pub async fn process_transactions(&self) {
         info!("processing transactions");
-        while let Ok(transaction) = self.rx.recv().await {
-            // Process confirmed transactions in parallel
+        while let Some(transaction) = self.rx.recv().await {
             let detector = self.clone();
             tokio::spawn(async move {
                 if let Some(movement) = detector.analyze_transaction(transaction).await {
@@ -100,46 +101,43 @@ impl WhaleDetector {
     }
 
     async fn analyze_transaction(&self, transaction: Transaction) -> Option<WhaleMovement> {
-        // Check if it's a whale transaction
         info!("analysing transaction");
         info!("{:?}", transaction);
         if !self.is_whale_transaction(&transaction).await {
             return None;
         }
 
-        // Convert and analyze DEX transaction
-        let dex_transaction = DexTransaction::from(transaction.clone());
-        let dex_trade = self.dex_analyzer.analyze_transaction(dex_transaction).await?;
+        let dex_transaction = DexTransaction::try_from(transaction.clone()).ok()?;
+        let dex_trade = self.dex_analyzer.analyze_transaction(&dex_transaction).await?;
+
         info!("DEX TRANSACTION: {:?}", dex_transaction);
         info!("DEX TRADE: {:?}", dex_trade);
 
-        // Get whale address and calculate confidence
-        let (whale_address, confidence): (String, f64) = tokio::join!(
+        let (whale_address, confidence) = tokio::join!(
             self.determine_whale_address(&transaction),
             self.calculate_confidence(&transaction)
         );
 
-        // Convert DEX trade to movement type
         let movement_type = match dex_trade.trade_type {
             TradeType::Buy { token, amount, price } => MovementType::TokenSwap {
                 action: "buy".to_string(),
-                token_address: token,
-                amount: amount as f64,
+                token_address: token.to_string(),
+                amount,
                 price,
             },
             TradeType::Sell { token, amount, price } => MovementType::TokenSwap {
                 action: "sell".to_string(),
-                token_address: token,
-                amount: amount as f64,
+                token_address: token.to_string(),
+                amount,
                 price,
             },
-            TradeType::Unknown => return None, // Skip non-DEX trades
+            TradeType::Unknown => return None,
         };
+
         info!("Movement Type: {:?}", movement_type);
 
-        // Cache the results
         self.cache.update_cache(
-            &whale_address,
+            whale_address.clone(),
             movement_type.clone(),
         ).await;
 

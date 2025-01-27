@@ -1,12 +1,14 @@
 use log::{info, warn, error, debug};
 use futures::StreamExt;
-use thiserror::Error;  // Add this for proper error handling
-
+use thiserror::Error;
 use solana_sdk::{
     signature::Signature,
     transaction::Transaction,
-    signer::keypair::Keypair,  // Add this for Keypair
+    signer::keypair::Keypair,
+    hash::Hash,
 };
+use solana_client::rpc_client::RpcClient;
+use solana_transaction_status::EncodedConfirmedBlock;
 use std::time::Duration;
 
 use tokio::{
@@ -19,6 +21,7 @@ use tokio::sync::RwLock;
 use std::collections::{HashMap, HashSet};
 use solana_sdk::pubkey::Pubkey;
 use chrono::{DateTime, Utc};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct TransactionLog {
@@ -27,7 +30,7 @@ pub struct TransactionLog {
     pub timestamp: u64,
 }
 
-#[derive(Debug, Error)]  
+#[derive(Debug, Error)]
 pub enum MempoolError {
     #[error("RPC Connection Error: {0}")]
     RpcConnectionError(String),
@@ -39,7 +42,6 @@ pub enum MempoolError {
     TimeoutError(String),
 }
 
-#[derive(Clone)]
 pub struct MempoolMonitor {
     solana_config: SolanaConfig,
     rpc_urls: Vec<String>,
@@ -48,8 +50,9 @@ pub struct MempoolMonitor {
     transaction_receiver: mpsc::Receiver<TransactionLog>,
 }
 
+// Remove Clone derive since Receiver can't be cloned
 impl MempoolMonitor {
-    pub fn new(solana_config: SolanaConfig) -> Self {
+    pub fn new(solana_config: SolanaConfig) -> (Self, mpsc::Sender<TransactionLog>) {
         let rpc_urls = vec![
             "https://api.mainnet-beta.solana.com".to_string(),
             "https://rpc.ankr.com/solana".to_string(),
@@ -61,48 +64,48 @@ impl MempoolMonitor {
         ];
 
         let (tx, rx) = mpsc::channel(100);
+        let tx_clone = tx.clone();
 
-        Self {
+        (Self {
             solana_config,
             rpc_urls,
             websocket_urls,
             transaction_sender: tx,
             transaction_receiver: rx,
-        }
+        }, tx_clone)
     }
 
     /// Start monitoring the mempool using RPC
     pub async fn monitor_mempool(&self) -> Result<(), MempoolError> {
-        let rpc_client = self.solana_config.create_rpc_client();
+        let rpc_client = Arc::new(self.solana_config.create_rpc_client());
 
         info!("Starting mempool monitoring");
         loop {
-            // Fetch recent blockhashes and transactions
-            match rpc_client.get_recent_blockhash().await {
-                Ok((blockhash, _)) => {
-                    // Fetch transactions for the latest blockhash
-                    match rpc_client.get_block(blockhash).await {
-                        Ok(block) => {
-                            for tx in block.transactions {
-                                let log = TransactionLog {
-                                    signature: tx.transaction.signatures[0],
-                                    raw_transaction: tx.transaction,
-                                    timestamp: chrono::Utc::now().timestamp() as u64,
-                                };
+            // Fetch recent blockhash
+            let blockhash = rpc_client.get_latest_blockhash()
+                .map_err(|e| MempoolError::RpcConnectionError(e.to_string()))?;
 
-                                // Send transaction log
-                                if let Err(e) = self.transaction_sender.send(log).await {
-                                    error!("Failed to send transaction log: {:?}", e);
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            error!("Failed to fetch block: {:?}", e);
+            // Fetch transactions for the latest blockhash
+            let block = rpc_client.get_block_with_encoding(
+                blockhash,
+                solana_transaction_status::UiTransactionEncoding::Base64
+            )
+            .map_err(|e| MempoolError::RpcConnectionError(e.to_string()))?;
+
+            if let Some(block) = block {
+                for tx in block.transactions {
+                    if let Some(transaction) = tx.transaction {
+                        let log = TransactionLog {
+                            signature: transaction.signatures[0],
+                            raw_transaction: transaction,
+                            timestamp: chrono::Utc::now().timestamp() as u64,
+                        };
+
+                        // Send transaction log
+                        if let Err(e) = self.transaction_sender.send(log).await {
+                            error!("Failed to send transaction log: {:?}", e);
                         }
                     }
-                }
-                Err(e) => {
-                    error!("Failed to fetch recent blockhash: {:?}", e);
                 }
             }
 

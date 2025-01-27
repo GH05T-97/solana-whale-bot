@@ -1,11 +1,88 @@
 use reqwest;
 use serde::{Deserialize, Serialize};
-// Common imports to add
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use std::collections::{HashMap, HashSet};
-use solana_sdk::pubkey::Pubkey;
+use solana_sdk::{
+    pubkey::Pubkey,
+    instruction::Instruction,
+};
 use chrono::{DateTime, Utc};
+use thiserror::Error;
+
+// Add missing type definitions
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SwapParams {
+    pub input_mint: Pubkey,
+    pub output_mint: Pubkey,
+    pub amount: u64,
+    pub slippage_bps: u64,
+    pub user_public_key: Pubkey,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SwapRequest {
+    pub input_mint: String,
+    pub output_mint: String,
+    pub amount: u64,
+    pub slippage_bps: u64,
+    pub user_public_key: String,
+    pub route_plan: Vec<RoutePlan>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RoutePlan {
+    pub swap_info: SwapInfo,
+    pub percent: u8,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SwapInfo {
+    pub ammKey: String,
+    pub label: String,
+    pub input_mint: String,
+    pub output_mint: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SwapResponse {
+    pub program_id: Pubkey,
+    pub instruction_data: Vec<u8>,
+    pub accounts: Vec<AccountMeta>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Quote {
+    pub input_mint: String,
+    pub output_mint: String,
+    pub in_amount: u64,
+    pub out_amount: u64,
+    pub price_impact: f64,
+    pub route_plan: Vec<RoutePlan>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Liquidity {
+    pub pool_id: String,
+    pub token_a_mint: String,
+    pub token_b_mint: String,
+    pub total_liquidity: u64,
+}
+
+#[derive(Debug, Error)]
+pub enum ApiError {
+    #[error("HTTP request failed: {0}")]
+    RequestError(#[from] reqwest::Error),
+
+    #[error("Failed to parse response: {0}")]
+    ParseError(String),
+
+    #[error("Invalid parameters: {0}")]
+    InvalidParams(String),
+
+    #[error("API error: {0}")]
+    ApiError(String),
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct JupiterApiClient {
@@ -60,18 +137,18 @@ impl JupiterApiClient {
             .json::<SwapResponse>()
             .await?;
 
-        // Convert to Solana instruction
         Ok(Instruction::new_with_bytes(
             swap_response.program_id,
             &swap_response.instruction_data,
-            swap_response.accounts
+            swap_response.accounts,
         ))
     }
 
-    pub async fn get_quote(&self,
+    pub async fn get_quote(
+        &self,
         input_mint: Pubkey,
         output_mint: Pubkey,
-        amount: u64
+        amount: u64,
     ) -> Result<Quote, ApiError> {
         let url = format!("{}/quote", self.base_url);
 
@@ -103,26 +180,18 @@ impl RaydiumApiClient {
         &self,
         params: &RaydiumSwapParams
     ) -> Result<Instruction, ApiError> {
-        // Get liquidity pool information
-        let pool_info = self.get_liquidity_pool(
-            params.input_token,
-            params.output_token
-        ).await?;
+        let pool_info = self.get_liquidity(params.pool_id).await?;
 
-        // Construct swap route URL
         let swap_route_url = format!("{}/swap", self.base_url);
 
-        // Prepare swap payload
         let swap_payload = RaydiumSwapRequest {
-            input_token: params.input_token.to_string(),
-            output_token: params.output_token.to_string(),
-            input_amount: params.input_amount,
-            min_output_amount: params.min_output_amount,
-            user_public_key: params.user_public_key.to_string(),
+            input_token: params.amount_in.to_string(),
+            output_token: params.min_amount_out.to_string(),
+            input_amount: params.amount_in,
+            min_output_amount: params.min_amount_out,
             pool_id: pool_info.pool_id,
         };
 
-        // Send swap request to get instruction
         let swap_response = self.http_client
             .post(&swap_route_url)
             .json(&swap_payload)
@@ -131,11 +200,10 @@ impl RaydiumApiClient {
             .json::<SwapResponse>()
             .await?;
 
-        // Convert to Solana instruction
         Ok(Instruction::new_with_bytes(
             swap_response.program_id,
             &swap_response.instruction_data,
-            swap_response.accounts
+            swap_response.accounts,
         ))
     }
 
