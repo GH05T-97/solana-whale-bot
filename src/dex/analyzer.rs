@@ -4,8 +4,6 @@ use super::types::{DexTransaction, TradeType, DexTrade, DexProtocol};
 use solana_sdk::pubkey::Pubkey;
 use std::collections::HashSet;
 
-
-use crate::dex::protocols::{JUPITER_PROGRAM_ID, RAYDIUM_PROGRAM_ID};
 use crate::dex::protocols::{jupiter, raydium};
 
 #[derive(Clone, Debug, Default)]
@@ -14,6 +12,8 @@ pub struct DexAnalyzer {
 }
 
 const MINIMUM_TRADE_AMOUNT: u64 = 1_000_000;
+const JUPITER_PROGRAM_ID: &str = "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4";
+const RAYDIUM_PROGRAM_ID: &str = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
 
 impl DexAnalyzer {
     pub fn new() -> Self {
