@@ -1,20 +1,14 @@
 use log::{info, warn, error, debug};
 
-use solana_client::nonblocking::rpc_client::RpcClient;
-
 // Add futures
 use futures::StreamExt;
 
-// For error attributes, add at the top:
-use thiserror::Error;
 use solana_sdk::{
     signature::Signature,
     transaction::Transaction,
 };
-use std::{
-    sync::Arc,
-    time::Duration,
-};
+use std::time::Duration;
+
 use tokio::{
     sync::mpsc,
     time::timeout,

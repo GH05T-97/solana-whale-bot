@@ -1,24 +1,21 @@
 // Common imports to add
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use std::collections::{HashMap, HashSet, VecDeque};
-use solana_sdk::pubkey::Pubkey;
-use chrono::{DateTime, Utc};
+use std::collections::{HashSet, VecDeque};
 use std::env;
 use log::{info, warn, error, debug};
 use tokio::sync::mpsc;
-use lru::LruCache;
 use super::{
     config::WhaleConfig,
     cache::WhaleCache,
     mempool::MempoolMonitor,
 };
 use crate::whale::types::{Transaction, WhaleMovement, MovementType};
-use crate::dex::types::{DexTransaction, TradeType, DexProtocol, DexTrade};
+use crate::dex::types::{DexTransaction, TradeType};
 use crate::dex::DexAnalyzer;
 use crate::execution::TradeExecutor;
 use crate::solana_config::SolanaConfig;
-use crate::strategy::types::{StrategyConfig, RiskParams, TradeSignal};
+use crate::strategy::types::{StrategyConfig, RiskParams};
 use crate::strategy::StrategyAnalyzer;
 use rust_decimal::Decimal;
 
