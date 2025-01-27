@@ -1,11 +1,11 @@
 use log::{info, warn, error, debug};
-
-// Add futures
 use futures::StreamExt;
+use thiserror::Error;  // Add this for proper error handling
 
 use solana_sdk::{
     signature::Signature,
     transaction::Transaction,
+    signer::keypair::Keypair,  // Add this for Keypair
 };
 use std::time::Duration;
 
@@ -27,7 +27,7 @@ pub struct TransactionLog {
     pub timestamp: u64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]  
 pub enum MempoolError {
     #[error("RPC Connection Error: {0}")]
     RpcConnectionError(String),
