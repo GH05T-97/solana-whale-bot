@@ -16,6 +16,8 @@ use tokio::{
     time::timeout,
 };
 use crate::SolanaConfig;
+use solana_transaction_status::EncodedConfirmedBlock;
+use solana_transaction_status::UiTransactionEncoding;
 
 use tokio::sync::RwLock;
 use std::collections::{HashMap, HashSet};

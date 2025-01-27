@@ -18,6 +18,8 @@ use crate::solana_config::SolanaConfig;
 use crate::strategy::types::{StrategyConfig, RiskParams};
 use crate::strategy::StrategyAnalyzer;
 use rust_decimal::Decimal;
+use solana_sdk::signature::EncodableKey;
+use std::str::FromStr;
 
 #[derive(Clone)]
 struct PendingTransaction {
@@ -147,6 +149,10 @@ impl WhaleDetector {
             movement_type,
             confidence,
             price: dex_trade.price,
+            amount: todo!(),
+            token_address: todo!(),
+            slippage: todo!(),
+            price_impact: todo!(),
         })
     }
 

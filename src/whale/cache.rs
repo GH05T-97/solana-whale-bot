@@ -4,6 +4,8 @@ use tokio::sync::RwLock;
 use std::collections::HashMap;
 use lru::LruCache;
 use crate::whale::types::{Transaction, MovementType};
+use std::num::NonZeroUsize;
+use lru::LruCache;
 
 #[derive(Debug)]
 pub struct WhaleCache {
@@ -17,8 +19,12 @@ pub struct WhaleCache {
 impl WhaleCache {
     pub fn new() -> Self {
         Self {
-            balance_cache: Arc::new(RwLock::new(LruCache::new(1000))), // Cache for balances
-            transaction_cache: Arc::new(RwLock::new(LruCache::new(1000))), // Cache for transactions
+            balance_cache: Arc::new(RwLock::new(
+                LruCache::new(NonZeroUsize::new(1000).unwrap())
+            )),
+            transaction_cache: Arc::new(RwLock::new(
+                LruCache::new(NonZeroUsize::new(1000).unwrap())
+            )),
             whale_status_cache: Arc::new(RwLock::new(HashMap::new())), // Cache for whale status
             movement_type_cache: Arc::new(RwLock::new(HashMap::new())), // Cache for movement types
             confidence_cache: Arc::new(RwLock::new(HashMap::new())), // Cache for confidence levels

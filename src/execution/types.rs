@@ -18,32 +18,57 @@ pub struct OrderRequest {
     pub take_profit: Option<Decimal>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum OrderDirection {
     Buy,
     Sell,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum OrderType {
-    Market,
-    Limit(Decimal),
+impl Default for OrderDirection {
+    fn default() -> Self {
+        OrderDirection::Buy
+    }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
+pub enum OrderType {
+    Market,
+    Limit,
+}
+
+impl Default for OrderType {
+    fn default() -> Self {
+        OrderType::Market
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum TimeInForce {
     GoodTilCancelled,
     ImmediateOrCancel,
     FillOrKill,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+impl Default for TimeInForce {
+    fn default() -> Self {
+        TimeInForce::GoodTilCancelled
+    }
+}
+
+
+#[derive(Clone, Debug)]
 pub enum OrderStatus {
     New,
-    PartiallyFilled { filled_amount: Decimal },
-    Filled { fill_price: Decimal },
+    PartiallyFilled,
+    Filled,
     Cancelled,
-    Failed { reason: String },
+    Rejected,
+}
+
+impl Default for OrderStatus {
+    fn default() -> Self {
+        OrderStatus::New
+    }
 }
 
 #[derive(Clone, Debug, Default)]

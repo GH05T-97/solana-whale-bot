@@ -83,41 +83,44 @@ pub enum ExecutionErrorType {
     RpcError,
     NetworkError,
     TimeoutError,
+    ValidationFailed,
+    NoLiquidityAvailable,
+    TransactionFailed,
+    BlockhashFetchFailed,
     InsufficientBalance,
-    ValidationError,
-    TransactionError,
-    PositionNotFound,
     SlippageExceeded,
     HighPriceImpact,
     OrderRejected,
+    ApiRequestFailed,
+    DexError,
+    OrderProcessingFailed,
+    TokenAccountNotFound,
+    QuoteExpired,
+    InvalidParameters,
+    WalletError,
 }
 
-impl ExecutionError {
-    pub fn error_type(&self) -> ExecutionErrorType {
-        match self {
+impl From<ExecutionError> for ExecutionErrorType {
+    fn from(error: ExecutionError) -> Self {
+        match error {
             ExecutionError::RpcError(_) => ExecutionErrorType::RpcError,
             ExecutionError::NetworkError(_) => ExecutionErrorType::NetworkError,
             ExecutionError::TimeoutError(_) => ExecutionErrorType::TimeoutError,
-            ExecutionError::InsufficientBalance { .. } => ExecutionErrorType::InsufficientBalance,
-            ExecutionError::ValidationError(_) => ExecutionErrorType::ValidationError,
-            ExecutionError::TransactionError(_) => ExecutionErrorType::TransactionError,
-            ExecutionError::PositionNotFound(_) => ExecutionErrorType::PositionNotFound,
-            ExecutionError::SlippageExceeded { .. } => ExecutionErrorType::SlippageExceeded,
-            ExecutionError::HighPriceImpact(_) => ExecutionErrorType::HighPriceImpact,
-            ExecutionError::OrderRejected(_) => ExecutionErrorType::OrderRejected,
+            ExecutionError::ValidationFailed(_) => ExecutionErrorType::ValidationFailed,
             ExecutionError::NoLiquidityAvailable(_) => ExecutionErrorType::NoLiquidityAvailable,
             ExecutionError::TransactionFailed(_) => ExecutionErrorType::TransactionFailed,
             ExecutionError::BlockhashFetchFailed(_) => ExecutionErrorType::BlockhashFetchFailed,
-            ExecutionError::ValidationFailed(_) => ExcutionErrorType::ValidationFailed,
+            ExecutionError::InsufficientBalance { .. } => ExecutionErrorType::InsufficientBalance,
+            ExecutionError::SlippageExceeded { .. } => ExecutionErrorType::SlippageExceeded,
+            ExecutionError::HighPriceImpact(_) => ExecutionErrorType::HighPriceImpact,
+            ExecutionError::OrderRejected(_) => ExecutionErrorType::OrderRejected,
+            ExecutionError::ApiRequestFailed(_) => ExecutionErrorType::ApiRequestFailed,
+            ExecutionError::DexError(_) => ExecutionErrorType::DexError,
+            ExecutionError::OrderProcessingFailed(_) => ExecutionErrorType::OrderProcessingFailed,
+            ExecutionError::TokenAccountNotFound(_) => ExecutionErrorType::TokenAccountNotFound,
+            ExecutionError::QuoteExpired => ExecutionErrorType::QuoteExpired,
+            ExecutionError::InvalidParameters(_) => ExecutionErrorType::InvalidParameters,
+            ExecutionError::WalletError(_) => ExecutionErrorType::WalletError,
         }
-    }
-
-    pub fn is_retryable(&self) -> bool {
-        matches!(
-            self.error_type(),
-            ExecutionErrorType::RpcError
-                | ExecutionErrorType::NetworkError
-                | ExecutionErrorType::TimeoutError
-        )
     }
 }

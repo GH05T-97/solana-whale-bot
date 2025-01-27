@@ -38,7 +38,7 @@ pub struct RoutePlan {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SwapInfo {
-    pub ammKey: String,
+    pub amm_key: String,
     pub label: String,
     pub input_mint: String,
     pub output_mint: String,

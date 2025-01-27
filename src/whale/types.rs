@@ -18,6 +18,10 @@ pub struct WhaleMovement {
     pub movement_type: MovementType,
     pub confidence: f64,
     pub price: f64,
+    pub amount: f64,
+    pub token_address: Pubkey,
+    pub slippage: f64,
+    pub price_impact: f64,
 }
 
 #[derive(Clone, Debug, Default)]
