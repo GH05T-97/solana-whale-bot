@@ -1,7 +1,8 @@
 use thiserror::Error;
 use solana_client::client_error::ClientError;
+use std::time::Duration; // Added import for Duration
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Error)]
 pub enum TradeSubmissionError {
     #[error("Insufficient balance: required {required} SOL, available {available} SOL")]
     InsufficientBalance {
@@ -25,7 +26,7 @@ pub enum TradeSubmissionError {
     NetworkCongestion,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Error)]
 pub enum ExecutionError {
     #[error("RPC error: {0}")]
     RpcError(String),
