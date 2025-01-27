@@ -5,10 +5,8 @@ use solana_sdk::pubkey::Pubkey;
 use std::collections::HashSet;
 
 
-use crate::dex::protocols::{
-    JUPITER_PROGRAM_ID,
-    RAYDIUM_PROGRAM_ID,
-};
+use crate::dex::protocols::{JUPITER_PROGRAM_ID, RAYDIUM_PROGRAM_ID};
+use crate::dex::protocols::{jupiter, raydium};
 
 #[derive(Clone, Debug, Default)]
 pub struct DexAnalyzer {

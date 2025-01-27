@@ -3,7 +3,8 @@ pub mod protocols {
     pub mod raydium;
 }
 pub mod analyzer;
-pub mod types;  // Change from 'mod types;' to 'pub mod types;'
+pub mod types;
+mod protocols;  // Change from 'mod types;' to 'pub mod types;'
 
 use protocols::{
     jupiter::JupiterProtocol,
