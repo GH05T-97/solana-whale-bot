@@ -1,42 +1,20 @@
-mod execution;
-mod whale;
-mod solana_config;
-mod dex;
-pub mod strategy;
-
-use tokio;
-use log::{info, error};
+use solana_whale_bot::WhaleBot;
 use dotenv::dotenv;
 use std::env;
 
-// Import necessary components
-// use crate::solana_whale_trader::{
-//     whale::WhaleDetector,
-//     whale::config::WhaleConfig,
-//     execution::TradeExecutor,
-//     strategy::StrategyConfig,
-// };
-
-use crate::solana_config::SolanaConfig;
-use crate::whale::WhaleDetector;
-use crate:: whale::config::WhaleConfig;
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load environment variables
     dotenv().ok();
 
-    // Initialize logging
-    env_logger::init();
+    let token = env::var("TELEGRAM_BOT_TOKEN")
+        .expect("TELEGRAM_BOT_TOKEN must be set");
+    let chat_id = env::var("TELEGRAM_CHAT_ID")
+        .expect("TELEGRAM_CHAT_ID must be set")
+        .parse::<i64>()
+        .expect("TELEGRAM_CHAT_ID must be a valid integer");
 
-    let config = WhaleConfig::new();
-    let whale_detector = WhaleDetector::new(
-        config
-    );
-
-    // Start the trading bot
-    info!("Starting Solana Whale Tracking Trading Bot");
-    whale_detector.start().await?;
+    let bot = WhaleBot::new(&token, chat_id).await?;
+    bot.start().await?;
 
     Ok(())
 }
