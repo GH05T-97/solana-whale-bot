@@ -1,4 +1,4 @@
-use teloxide::utils::command::BotCommands;
+use teloxide::macros::BotCommands;
 
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase")]
