@@ -1,4 +1,4 @@
-use solana_whale_bot::WhaleBot;
+use solana_whale_trader::bot::WhaleBot;
 use dotenv::dotenv;
 use std::env;
 
