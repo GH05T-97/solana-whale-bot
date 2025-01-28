@@ -38,9 +38,9 @@ impl WhaleBot {
         let handler = Update::filter_message()
             .filter_command::<Command>()
             .endpoint(move |bot: Bot, msg: Message, cmd: Command| {
-                let min_amount = min_amount;
-                let is_tracking = is_tracking;
-                let chat_id = chat_id;
+                let _min_amount = min_amount;
+                let _is_tracking = is_tracking;
+                let _chat_id = chat_id;
                 async move {
                     match cmd {
                         Command::Start => {
