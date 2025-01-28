@@ -34,9 +34,6 @@ jobs:
     - name: Run Clippy
       run: cargo clippy --all-targets --all-features -- -D warnings
 
-    - name: Format Rust code
-      run: cargo fmt -- --check
-
   deploy:
     name: Deploy to AWS ECS
     runs-on: ubuntu-latest

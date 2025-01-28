@@ -1,8 +1,8 @@
-use teloxide::{
-    prelude::*,
-    dispatching::{HandlerExt, UpdateFilterExt},
-};
 use crate::bot::commands::Command;
+use teloxide::{
+    dispatching::{HandlerExt, UpdateFilterExt},
+    prelude::*,
+};
 
 pub struct WhaleBot {
     bot: Bot,
