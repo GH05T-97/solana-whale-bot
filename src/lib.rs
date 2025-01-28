@@ -1,3 +1,3 @@
 pub mod bot;
 
-pub use bot::TradingBot;
+pub use bot::telegram::WhaleBot;
