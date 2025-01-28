@@ -1,5 +1,7 @@
-// src/bot/telegram.rs
-use teloxide::prelude::*;
+use teloxide::{
+    prelude::*,
+    dispatching::{HandlerExt, UpdateFilterExt},
+};
 use crate::bot::commands::Command;
 
 pub struct WhaleBot {
@@ -27,24 +29,21 @@ impl WhaleBot {
         Ok(())
     }
 
-    async fn setup_handlers(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let bot = self.bot.clone();
+async fn setup_handlers(&self) -> Result<(), Box<dyn std::error::Error>> {
+    let bot = self.bot.clone();
 
-        Command::set_bot(bot.clone());
+    let handler = Update::filter_message()
+        .filter_command::<Command>()
+        .endpoint(Self::handle_command);
 
-        let handler = dptree::entry()
-            .branch(Update::filter_message()
-                .filter_command::<Command>()
-                .endpoint(Self::handle_command));
+    Dispatcher::builder(bot, handler)
+        .enable_ctrlc_handler()
+        .build()
+        .dispatch()
+        .await;
 
-        Dispatcher::builder(bot, handler)
-            .enable_ctrlc_handler()
-            .build()
-            .dispatch()
-            .await;
-
-        Ok(())
-    }
+    Ok(())
+}
 
     async fn handle_command(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
         match cmd {
