@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 # Async runtime
-teloxide = "0.13"
+teloxide = { version = "0.13", features = ["macros"] }
 tokio = { version = "1.8", features = ["full"] }
 solana-client = "2.1.11"
 solana-sdk = "2.1.11"
