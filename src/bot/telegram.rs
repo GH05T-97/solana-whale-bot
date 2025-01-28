@@ -79,7 +79,7 @@ impl WhaleBot {
                             bot.send_message(msg.chat.id, help_text).await?;
                         }
                     }
-                    Ok(())
+                    Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
                 }
             });
 
