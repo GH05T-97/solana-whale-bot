@@ -1,5 +1,5 @@
-mod commands;
-mod telegram;
+pub mod commands;
+pub mod telegram;
 mod solana;
 mod whale_watch;
 

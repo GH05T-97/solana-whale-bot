@@ -1,4 +1,5 @@
 use teloxide::prelude::*;
+use teloxide::utils::command::BotCommands;
 use crate::bot::commands::Command;
 
 pub struct WhaleBot {
@@ -29,11 +30,9 @@ impl WhaleBot {
     async fn setup_handlers(&self) -> Result<(), Box<dyn std::error::Error>> {
         let bot = self.bot.clone();
 
-        let handler = dptree::entry()
-            .branch(Update::filter_message().filter_command::<Command>()
-                .endpoint(|bot: Bot, msg: Message, cmd: Command| async move {
-                    Self::handle_command(bot, msg, cmd).await
-                }));
+        let handler = Update::filter_message()
+            .filter_command::<Command>()
+            .endpoint(Self::handle_command);
 
         Dispatcher::builder(bot, handler)
             .enable_ctrlc_handler()
