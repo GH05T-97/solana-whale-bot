@@ -202,6 +202,8 @@ impl VolumeTracker {
             return Ok(name.clone());
         }
 
+		let token_account = self.rpc_client.get_account(&mint.parse()?)?;
+
         let account_info = AccountInfo::new(
 			&Pubkey::new(&mint.as_bytes()),
 			false,
