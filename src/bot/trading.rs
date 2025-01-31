@@ -1,14 +1,13 @@
+use std::sync::Arc;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcTransactionConfig;
-use solana_sdk::commitment_config::CommitmentConfig;
+use solana_sdk::{commitment_config::CommitmentConfig, account::Account};
 use solana_transaction_status::UiTransactionEncoding;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
-use solana_sdk::signature::Signature;
-use std::sync::Arc;
+use std::error::Error as StdError;
 
-#[derive(Clone)]
 pub struct TradingVolume {
     token_address: String,
     pub token_name: String,
@@ -18,7 +17,19 @@ pub struct TradingVolume {
     last_update: SystemTime,
 }
 
-#[derive(Clone)]
+impl Clone for TradingVolume {
+    fn clone(&self) -> Self {
+        Self {
+            token_address: self.token_address.clone(),
+            token_name: self.token_name.clone(),
+            total_volume: self.total_volume,
+            trade_count: self.trade_count,
+            average_trade_size: self.average_trade_size,
+            last_update: self.last_update,
+        }
+    }
+}
+
 pub struct VolumeTracker {
     rpc_client: Arc<RpcClient>,
     pub min_volume: f64,
@@ -27,6 +38,20 @@ pub struct VolumeTracker {
     time_window: Duration,
     token_names_cache: HashMap<String, String>, // Add this
     price_cache: HashMap<String, (f64, SystemTime)>, // Add this for price caching
+}
+
+impl Clone for VolumeTracker {
+    fn clone(&self) -> Self {
+        Self {
+            rpc_client: Arc::clone(&self.rpc_client),
+            min_volume: self.min_volume,
+            max_volume: self.max_volume,
+            volume_data: self.volume_data.clone(),
+            time_window: self.time_window,
+            token_names_cache: self.token_names_cache.clone(),
+            price_cache: self.price_cache.clone(),
+        }
+    }
 }
 
 
@@ -45,7 +70,7 @@ struct TokenPrice {
 impl VolumeTracker {
     pub fn new(rpc_url: &str, min_volume: f64, max_volume: f64) -> Self {
         Self {
-			rpc_client: Arc::new(RpcClient::new(rpc_url.to_string())),
+            rpc_client: Arc::new(RpcClient::new(rpc_url.to_string())),
             min_volume,
             max_volume,
             volume_data: HashMap::new(),
@@ -58,24 +83,21 @@ impl VolumeTracker {
     pub async fn track_trades(&mut self) -> Result<Vec<TradingVolume>, Box<dyn std::error::Error>> {
 		let dex_program_id = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".parse()?;
 
-		let signatures = self.rpc_client.get_signatures_for_address(&dex_program_id)?;
+        let signatures = self.rpc_client.get_signatures_for_address(&dex_program_id)?;
+        let mut hot_volumes: Vec<TradingVolume> = Vec::new();
 
-		let mut hot_volumes: Vec<TradingVolume> = Vec::new();
+        for sig_info in signatures {
+            let tx = self.rpc_client.get_transaction_with_config(
+                &sig_info.signature.parse()?,
+                RpcTransactionConfig {
+                    encoding: Some(UiTransactionEncoding::Json),
+                    commitment: Some(CommitmentConfig::confirmed()),
+                    max_supported_transaction_version: Some(0),
+                },
+            )?;
 
-		for sig_info in signatures {
-			let signature = sig_info.signature.parse::<Signature>()?;
-
-			let tx = self.rpc_client.get_transaction_with_config(
-				&signature,
-				RpcTransactionConfig {
-					encoding: Some(UiTransactionEncoding::Json),
-					commitment: Some(CommitmentConfig::confirmed()),
-					max_supported_transaction_version: Some(0),
-				},
-			)?;
-
-			if let Some(meta) = tx.transaction.meta {
-				if let Some(token_balances) = meta.pre_token_balances.into_option() {
+            if let Some(meta) = tx.transaction.meta {
+                if let Some(token_balances) = meta.pre_token_balances {
 					for (pre, post) in token_balances.iter().zip(meta.post_token_balances.unwrap()) {
 						let amount_change = (post.ui_token_amount.ui_amount.unwrap_or(0.0)
 							- pre.ui_token_amount.ui_amount.unwrap_or(0.0)).abs();
