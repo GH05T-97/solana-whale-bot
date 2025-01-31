@@ -3,7 +3,7 @@ use solana_whale_trader::bot::WhaleBot;
 use std::env;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {  // Updated error type
     dotenv().ok();
 
     let token = env::var("TELEGRAM_BOT_TOKEN").expect("TELEGRAM_BOT_TOKEN must be set");
