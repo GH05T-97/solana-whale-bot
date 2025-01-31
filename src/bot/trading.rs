@@ -7,7 +7,10 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
 use std::error::Error as StdError;
-use solana_program::account_info::AccountInfo;
+use solana_program::{
+    account_info::AccountInfo,
+    pubkey::Pubkey,
+};
 use solana_sdk::account::ReadableAccount;
 
 pub struct TradingVolume {
@@ -196,36 +199,38 @@ impl VolumeTracker {
         });
     }
 
-    async fn get_token_name(&self, mint: &str) -> Result<String, Box<dyn std::error::Error>> {
-        // First check our cache
-        if let Some(name) = self.token_names_cache.get(mint) {
-            return Ok(name.clone());
-        }
+	async fn get_token_name(&self, mint: &str) -> Result<String, Box<dyn std::error::Error + Send>> {
+		// First check our cache
+		if let Some(name) = self.token_names_cache.get(mint) {
+			return Ok(name.clone());
+		}
 
+		// If not in cache, fetch from Solana
 		let token_account = self.rpc_client.get_account(&mint.parse()?)?;
 
-        let account_info = AccountInfo::new(
-			&Pubkey::new(&mint.as_bytes()),
-			false,
-			false,
-			&mut token_account.lamports(),
-			&mut token_account.data,
-			&token_account.owner,
-			token_account.executable,
-			token_account.rent_epoch,
+		// Create an AccountInfo object from the token account
+		let account_info = AccountInfo::new(
+			&Pubkey::new(mint.as_bytes()), // Convert mint address to Pubkey
+			false,                         // Is signer? (false for token accounts)
+			false,                         // Is writable? (false for read-only access)
+			&mut token_account.lamports().clone(), // Lamports (balance)
+			&mut token_account.data().to_vec(),    // Data (clone the data)
+			&token_account.owner,                  // Owner program
+			token_account.executable,              // Is executable?
+			token_account.rent_epoch,              // Rent epoch
 		);
 
-        // Parse metadata from token account
-        if let Ok(metadata) = spl_token_metadata::state::Metadata::from_account_info(&account_info) {
-            let name = metadata.data.name.trim_matches(char::from(0)).to_string();
+		// Parse metadata from token account
+		if let Ok(metadata) = spl_token_metadata::state::Metadata::from_account_info(&account_info) {
+			let name = metadata.data.name.trim_matches(char::from(0)).to_string();
 
-            // Cache the result
-            self.token_names_cache.insert(mint.to_string(), name.clone());
+			// Cache the result
+			self.token_names_cache.insert(mint.to_string(), name.clone());
 
-            Ok(name)
-        } else {
-            // If metadata isn't available, return mint address as fallback
-            Ok(mint.to_string())
-        }
-    }
+			Ok(name)
+		} else {
+			// If metadata isn't available, return mint address as fallback
+			Ok(mint.to_string())
+		}
+	}
 }
