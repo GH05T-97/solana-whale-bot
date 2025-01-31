@@ -1,3 +1,4 @@
+#![allow(unused_variables)]
 use teloxide::{
     prelude::*,
     dispatching::{HandlerExt, UpdateFilterExt},

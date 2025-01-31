@@ -13,8 +13,10 @@ use std::time::{SystemTime, Duration};
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 
+#[allow(dead_code)]
 #[derive(Clone)]  // Derive Clone directly
 pub struct TradingVolume {
+    token_address: String,
     pub token_name: String,
     pub total_volume: f64,
     pub trade_count: u32,
@@ -22,6 +24,7 @@ pub struct TradingVolume {
     last_update: SystemTime,
 }
 
+#[allow(dead_code)]
 pub struct VolumeTracker {
     rpc_client: Arc<RpcClient>,
     pub min_volume: f64,
@@ -29,6 +32,7 @@ pub struct VolumeTracker {
     volume_data: HashMap<String, TradingVolume>,
     time_window: Duration,
     token_names_cache: HashMap<String, String>,
+    price_cache: HashMap<String, (f64, SystemTime)>,
 }
 
 #[derive(Deserialize)]
@@ -36,10 +40,12 @@ struct RaydiumPriceResponse {
     data: HashMap<String, TokenPrice>,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 struct TokenPrice {
     price: f64,
     #[serde(rename = "mint")]
+    token_mint: String,
 }
 
 impl VolumeTracker {
@@ -51,6 +57,7 @@ impl VolumeTracker {
             volume_data: HashMap::new(),
             time_window: Duration::from_secs(900),
             token_names_cache: HashMap::new(),
+            price_cache: HashMap::new(),
         }
     }
 
