@@ -12,6 +12,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solana_sdk::account::ReadableAccount;
+use std::str::FromStr;
 
 pub struct TradingVolume {
     token_address: String,
@@ -41,8 +42,8 @@ pub struct VolumeTracker {
     pub max_volume: f64,
     volume_data: HashMap<String, TradingVolume>,
     time_window: Duration,
-    token_names_cache: HashMap<String, String>, // Add this
-    price_cache: HashMap<String, (f64, SystemTime)>, // Add this for price caching
+    token_names_cache: HashMap<String, String>,
+    price_cache: HashMap<String, (f64, SystemTime)>,
 }
 
 impl Clone for VolumeTracker {
@@ -58,7 +59,6 @@ impl Clone for VolumeTracker {
         }
     }
 }
-
 
 #[derive(Deserialize)]
 struct RaydiumPriceResponse {
@@ -86,7 +86,7 @@ impl VolumeTracker {
     }
 
     pub async fn track_trades(&mut self) -> Result<Vec<TradingVolume>, Box<dyn std::error::Error>> {
-		let dex_program_id = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".parse()?;
+        let dex_program_id = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".parse()?;
 
         let signatures = self.rpc_client.get_signatures_for_address(&dex_program_id)?;
         let mut hot_volumes: Vec<TradingVolume> = Vec::new();
@@ -103,49 +103,49 @@ impl VolumeTracker {
 
             if let Some(meta) = tx.transaction.meta {
                 if let Some(token_balances) = meta.pre_token_balances.into() {
-					for (pre, post) in token_balances.iter().zip(meta.post_token_balances.unwrap()) {
-						let amount_change = (post.ui_token_amount.ui_amount.unwrap_or(0.0)
-							- pre.ui_token_amount.ui_amount.unwrap_or(0.0)).abs();
+                    for (pre, post) in token_balances.iter().zip(meta.post_token_balances.unwrap()) {
+                        let amount_change = (post.ui_token_amount.ui_amount.unwrap_or(0.0)
+                            - pre.ui_token_amount.ui_amount.unwrap_or(0.0)).abs();
 
-						// Get token price (you'd need to implement get_token_price)
-						let token_price = self.get_token_price(&post.mint).await?;
-						let trade_value = amount_change * token_price;
+                        // Get token price
+                        let token_price = self.get_token_price(&post.mint).await?;
+                        let trade_value = amount_change * token_price;
 
-						// Check if trade is within our target range
-						if trade_value >= self.min_volume && trade_value <= self.max_volume {
-							let token_name = self.get_token_name(&post.mint).await?;
+                        // Check if trade is within our target range
+                        if trade_value >= self.min_volume && trade_value <= self.max_volume {
+                            let token_name = self.get_token_name(&post.mint).await?;
 
-							// Update or create trading volume entry
-							if let Some(existing) = self.volume_data.get_mut(&post.mint) {
-								existing.total_volume += trade_value;
-								existing.trade_count += 1;
-								existing.average_trade_size = existing.total_volume / existing.trade_count as f64;
-								existing.last_update = SystemTime::now();
+                            // Update or create trading volume entry
+                            if let Some(existing) = self.volume_data.get_mut(&post.mint) {
+                                existing.total_volume += trade_value;
+                                existing.trade_count += 1;
+                                existing.average_trade_size = existing.total_volume / existing.trade_count as f64;
+                                existing.last_update = SystemTime::now();
 
-								if existing.trade_count >= 3 {
-									hot_volumes.push(existing.clone());
-								}
-							} else {
-								let volume = TradingVolume {
-									token_address: post.mint.clone(),
-									token_name,
-									total_volume: trade_value,
-									trade_count: 1,
-									average_trade_size: trade_value,
-									last_update: SystemTime::now(),
-								};
-								self.volume_data.insert(post.mint.clone(), volume);
-							}
-						}
-					}
-				}
-			}
-		}
+                                if existing.trade_count >= 3 {
+                                    hot_volumes.push(existing.clone());
+                                }
+                            } else {
+                                let volume = TradingVolume {
+                                    token_address: post.mint.clone(),
+                                    token_name,
+                                    total_volume: trade_value,
+                                    trade_count: 1,
+                                    average_trade_size: trade_value,
+                                    last_update: SystemTime::now(),
+                                };
+                                self.volume_data.insert(post.mint.clone(), volume);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
-		// Clean up old data
-		self.clean_old_data();
+        // Clean up old data
+        self.clean_old_data();
 
-		Ok(hot_volumes)
+        Ok(hot_volumes)
     }
 
     pub fn get_hot_pairs(&self) -> Vec<&TradingVolume> {
@@ -159,36 +159,36 @@ impl VolumeTracker {
             .collect()
     }
 
-	async fn get_token_price(&self, mint: &str) -> Result<f64, Box<dyn std::error::Error>> {
-		let url = format!(
-			"https://api.raydium.io/v2/main/price?tokens={}",
-			mint
-		);
+    async fn get_token_price(&self, mint: &str) -> Result<f64, Box<dyn std::error::Error>> {
+        let url = format!(
+            "https://api.raydium.io/v2/main/price?tokens={}",
+            mint
+        );
 
-		let client = reqwest::Client::new();
-		let response = client.get(&url)
-			.send()
-			.await?
-			.json::<RaydiumPriceResponse>()
-			.await;
+        let client = reqwest::Client::new();
+        let response = client.get(&url)
+            .send()
+            .await?
+            .json::<RaydiumPriceResponse>()
+            .await;
 
-		match response {
-			Ok(data) => {
-				if let Some(token_data) = data.data.get(mint) {
-					Ok(token_data.price)
-				} else {
-					// Fallback to another source or return error
-					Err("Price not found on Raydium".into())
-				}
-			}
-			Err(_) => {
-				// Handle API error or fallback
-				Err("Failed to fetch price from Raydium".into())
-			}
-		}
-	}
+        match response {
+            Ok(data) => {
+                if let Some(token_data) = data.data.get(mint) {
+                    Ok(token_data.price)
+                } else {
+                    // Fallback to another source or return error
+                    Err("Price not found on Raydium".into())
+                }
+            }
+            Err(_) => {
+                // Handle API error or fallback
+                Err("Failed to fetch price from Raydium".into())
+            }
+        }
+    }
 
-	fn clean_old_data(&mut self) {
+    fn clean_old_data(&mut self) {
         let now = SystemTime::now();
         self.volume_data.retain(|_, v| {
             if let Ok(duration) = now.duration_since(v.last_update) {
@@ -199,38 +199,38 @@ impl VolumeTracker {
         });
     }
 
-	async fn get_token_name(&self, mint: &str) -> Result<String, Box<dyn std::error::Error + Send>> {
-		// First check our cache
-		if let Some(name) = self.token_names_cache.get(mint) {
-			return Ok(name.clone());
-		}
+    async fn get_token_name(&self, mint: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        // First check our cache
+        if let Some(name) = self.token_names_cache.get(mint) {
+            return Ok(name.clone());
+        }
 
-		// If not in cache, fetch from Solana
-		let token_account = self.rpc_client.get_account(&mint.parse()?)?;
+        // If not in cache, fetch from Solana
+        let token_account = self.rpc_client.get_account(&Pubkey::from_str(mint)?)?;
 
-		// Create an AccountInfo object from the token account
-		let account_info = AccountInfo::new(
-			&Pubkey::new(mint.as_bytes()), // Convert mint address to Pubkey
-			false,                         // Is signer? (false for token accounts)
-			false,                         // Is writable? (false for read-only access)
-			&mut token_account.lamports().clone(), // Lamports (balance)
-			&mut token_account.data().to_vec(),    // Data (clone the data)
-			&token_account.owner,                  // Owner program
-			token_account.executable,              // Is executable?
-			token_account.rent_epoch,              // Rent epoch
-		);
+        // Create an AccountInfo object from the token account
+        let account_info = AccountInfo::new(
+            &Pubkey::from_str(mint)?,
+            false,
+            false,
+            &mut token_account.lamports().clone(),
+            &mut token_account.data().to_vec(),
+            &token_account.owner,
+            token_account.executable,
+            token_account.rent_epoch,
+        );
 
-		// Parse metadata from token account
-		if let Ok(metadata) = spl_token_metadata::state::Metadata::from_account_info(&account_info) {
-			let name = metadata.data.name.trim_matches(char::from(0)).to_string();
+        // Parse metadata from token account
+        if let Ok(metadata) = spl_token_metadata::state::Metadata::from_account_info(&account_info) {
+            let name = metadata.data.name.trim_matches(char::from(0)).to_string();
 
-			// Cache the result
-			self.token_names_cache.insert(mint.to_string(), name.clone());
+            // Cache the result
+            self.token_names_cache.insert(mint.to_string(), name.clone());
 
-			Ok(name)
-		} else {
-			// If metadata isn't available, return mint address as fallback
-			Ok(mint.to_string())
-		}
-	}
+            Ok(name)
+        } else {
+            // If metadata isn't available, return mint address as fallback
+            Ok(mint.to_string())
+        }
+    }
 }
