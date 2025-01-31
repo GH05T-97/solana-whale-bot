@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 pub struct WhaleBot {
     bot: Bot,
     chat_id: i64,
-    volume_tracker: Arc<Mutex<VolumeTracker>>, // Wrap in Arc<Mutex> for thread safety
+    volume_tracker: Arc<Mutex<VolumeTracker>>,
     is_tracking: Arc<Mutex<bool>>,
 }
 
@@ -27,12 +27,12 @@ impl WhaleBot {
         Ok(Self {
             bot,
             chat_id,
-            volume_tracker: Arc::new(Mutex::new(volume_tracker)), // Initialize as Arc<Mutex>
-            is_tracking: Arc::new(Mutex::new(false)), // Initialize as Arc<Mutex>
+            volume_tracker: Arc::new(Mutex::new(volume_tracker)),
+            is_tracking: Arc::new(Mutex::new(false)),
         })
     }
 
-    pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn start(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         println!("Starting trading volume monitor...");
         self.setup_handlers().await?;
         Ok(())

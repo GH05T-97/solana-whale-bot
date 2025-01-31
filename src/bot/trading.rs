@@ -2,13 +2,19 @@ use std::sync::Arc;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcTransactionConfig;
 use solana_sdk::{commitment_config::CommitmentConfig, account::Account};
-use solana_transaction_status::UiTransactionEncoding;
+use solana_transaction_status::{
+    option_serializer::OptionSerializer,
+    UiTransactionEncoding,
+    UiTransactionTokenBalance,
+};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
 use std::error::Error as StdError;
-use solana_program:: pubkey::Pubkey;
-use solana_program::account_info::AccountInfo;
+use solana_program::{
+    account_info::AccountInfo,
+    pubkey::Pubkey,
+};
 use solana_sdk::account::ReadableAccount;
 use std::str::FromStr;
 
@@ -197,7 +203,7 @@ impl VolumeTracker {
         });
     }
 
-	async fn get_token_name(&self, mint: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    async fn get_token_name(&self, mint: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         // First check our cache
         if let Some(name) = self.token_names_cache.get(mint) {
             return Ok(name.clone());
