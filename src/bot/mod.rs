@@ -1,6 +1,6 @@
 pub mod commands;
-mod solana;
 pub mod telegram;
-mod whale_watch;
+pub mod trading;
+
 
 pub use telegram::WhaleBot;

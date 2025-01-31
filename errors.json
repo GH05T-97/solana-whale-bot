@@ -1,0 +1,290 @@
+{
+	"src/dex/analyzer.rs": [
+	  {
+		"error-message": "unresolved imports `crate::dex::protocols::JUPITER_PROGRAM_ID`, `crate::dex::protocols::RAYDIUM_PROGRAM_ID`",
+		"line": "9"
+	  },
+	  {
+		"error-message": "use of undeclared crate or module `jupiter`",
+		"line": "42"
+	  },
+	  {
+		"error-message": "use of undeclared crate or module `raydium`",
+		"line": "43"
+	  }
+	],
+	"src/whale/cache.rs": [
+	  {
+		"error-message": "unresolved import `lru`",
+		"line": "5"
+	  },
+	  {
+		"error-message": "cannot find type `WhaleMovement` in this scope",
+		"line": "78"
+	  }
+	],
+	"src/whale/mempool.rs": [
+	  {
+		"error-message": "unresolved import `futures`",
+		"line": "4"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "38"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "35"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "32"
+	  }
+	],
+	"src/dex/mod.rs": [
+	  {
+		"error-message": "unresolved imports `protocols::jupiter::JupiterProtocol`, `protocols::raydium::RaydiumProtocol`",
+		"line": "9"
+	  }
+	],
+	"src/main.rs": [
+	  {
+		"error-message": "unresolved import `dotenv`",
+		"line": "9"
+	  }
+	],
+	"src/execution/error.rs": [
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "63"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "60"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "54"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "51"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "48"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "45"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "39"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "36"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "33"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "30"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "24"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "21"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "18"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "15"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "12"
+	  },
+	  {
+		"error-message": "cannot find attribute `error` in this scope",
+		"line": "6"
+	  }
+	],
+	"src/execution/executor.rs": [
+	  {
+		"error-message": "cannot find type `Keypair` in this scope",
+		"line": "77"
+	  },
+	  {
+		"error-message": "use of undeclared type `OrderStatus`",
+		"line": "190"
+	  },
+	  {
+		"error-message": "cannot find value `SOL_MINT` in this scope",
+		"line": "233"
+	  },
+	  {
+		"error-message": "use of undeclared type `TradeDirection`",
+		"line": "280"
+	  },
+	  {
+		"error-message": "use of undeclared type `OrderDirection`",
+		"line": "280"
+	  },
+	  {
+		"error-message": "use of undeclared type `TradeDirection`",
+		"line": "281"
+	  },
+	  {
+		"error-message": "use of undeclared type `OrderDirection`",
+		"line": "281"
+	  },
+	  {
+		"error-message": "use of undeclared type `OrderType`",
+		"line": "285"
+	  },
+	  {
+		"error-message": "use of undeclared type `TimeInForce`",
+		"line": "286"
+	  }
+	],
+	"src/execution/clients.rs": [
+	  {
+		"error-message": "cannot find type `SwapParams` in this scope",
+		"line": "32"
+	  },
+	  {
+		"error-message": "cannot find type `Instruction` in this scope",
+		"line": "33"
+	  },
+	  {
+		"error-message": "cannot find type `ApiError` in this scope",
+		"line": "33"
+	  },
+	  {
+		"error-message": "cannot find struct, variant or union type `SwapRequest` in this scope",
+		"line": "45"
+	  },
+	  {
+		"error-message": "cannot find type `SwapResponse` in this scope",
+		"line": "60"
+	  },
+	  {
+		"error-message": "use of undeclared type `Instruction`",
+		"line": "64"
+	  },
+	  {
+		"error-message": "cannot find type `Quote` in this scope",
+		"line": "75"
+	  },
+	  {
+		"error-message": "cannot find type `ApiError` in this scope",
+		"line": "75"
+	  },
+	  {
+		"error-message": "cannot find type `Quote` in this scope",
+		"line": "87"
+	  },
+	  {
+		"error-message": "cannot find type `RaydiumSwapParams` in this scope",
+		"line": "104"
+	  },
+	  {
+		"error-message": "cannot find type `Instruction` in this scope",
+		"line": "105"
+	  },
+	  {
+		"error-message": "cannot find type `ApiError` in this scope",
+		"line": "105"
+	  },
+	  {
+		"error-message": "cannot find struct, variant or union type `RaydiumSwapRequest` in this scope",
+		"line": "116"
+	  },
+	  {
+		"error-message": "cannot find type `SwapResponse` in this scope",
+		"line": "131"
+	  },
+	  {
+		"error-message": "use of undeclared type `Instruction`",
+		"line": "135"
+	  },
+	  {
+		"error-message": "cannot find type `Liquidity` in this scope",
+		"line": "142"
+	  },
+	  {
+		"error-message": "cannot find type `ApiError` in this scope",
+		"line": "142"
+	  },
+	  {
+		"error-message": "cannot find type `Liquidity` in this scope",
+		"line": "149"
+	  }
+	],
+	"src/execution/retry.rs": [
+	  {
+		"error-message": "cannot find type `ExecutionErrorType` in this scope",
+		"line": "17"
+	  },
+	  {
+		"error-message": "use of undeclared type `ExecutionErrorType`",
+		"line": "28"
+	  },
+	  {
+		"error-message": "use of undeclared type `ExecutionErrorType`",
+		"line": "29"
+	  },
+	  {
+		"error-message": "use of undeclared type `ExecutionErrorType`",
+		"line": "30"
+	  },
+	  {
+		"error-message": "cannot find type `ExecutionError` in this scope",
+		"line": "49"
+	  },
+	  {
+		"error-message": "cannot find type `ExecutionError` in this scope",
+		"line": "46"
+	  },
+	  {
+		"error-message": "cannot find type `ExecutionError` in this scope",
+		"line": "81"
+	  }
+	],
+	"src/strategy/analyzer.rs": [
+	  {
+		"error-message": "cannot find type `PortfolioState` in this scope",
+		"line": "33"
+	  },
+	  {
+		"error-message": "cannot find type `TradeInfo` in this scope",
+		"line": "34"
+	  },
+	  {
+		"error-message": "use of undeclared type `PortfolioState`",
+		"line": "43"
+	  },
+	  {
+		"error-message": "use of undeclared type `MovementType`",
+		"line": "65"
+	  },
+	  {
+		"error-message": "use of undeclared type `MovementType`",
+		"line": "186"
+	  },
+	  {
+		"error-message": "use of undeclared type `MovementType`",
+		"line": "189"
+	  }
+	]
+  }

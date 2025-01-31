@@ -1,81 +1,259 @@
-use crate::bot::commands::Command;
 use teloxide::{
-    dispatching::{HandlerExt, UpdateFilterExt},
     prelude::*,
+    dispatching::{HandlerExt, UpdateFilterExt},
 };
+use crate::bot::commands::Command;
+use crate::bot::trading::VolumeTracker;
 
 pub struct WhaleBot {
     bot: Bot,
     chat_id: i64,
-    min_amount: f64,
+    volume_tracker: VolumeTracker,
     is_tracking: bool,
 }
 
 impl WhaleBot {
     pub async fn new(token: &str, chat_id: i64) -> Result<Self, Box<dyn std::error::Error>> {
         let bot = Bot::new(token);
+        let volume_tracker = VolumeTracker::new(
+            "https://api.mainnet-beta.solana.com",
+            5000.0, // $5k minimum
+            10000.0, // $10k maximum
+        );
 
         Ok(Self {
             bot,
             chat_id,
-            min_amount: 1000.0,
+            volume_tracker,
             is_tracking: false,
         })
     }
 
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Starting whale tracking bot...");
+        println!("Starting trading volume monitor...");
         self.setup_handlers().await?;
+        Ok(())
+    }
+
+    async fn handle_command(bot: Bot, msg: Message, cmd: Command) -> ResponseResult<()> {
+        match cmd {
+            Command::Start => {
+                bot.send_message(
+                    msg.chat.id,
+                    "🔍 Started monitoring trading volume patterns!\n\
+                    Looking for concentrated trading activity between $5,000-$10,000\n\
+                    You will be notified when hot trading pairs are detected."
+                ).await?;
+            }
+            Command::Stop => {
+                bot.send_message(
+                    msg.chat.id,
+                    "⏹️ Monitoring stopped. Use /start to resume monitoring."
+                ).await?;
+            }
+            Command::SetMinVolume { amount } => {
+                if amount > 0.0 && amount < 10000.0 {
+                    bot.send_message(
+                        msg.chat.id,
+                        format!("✅ Minimum volume threshold set to ${:.2}", amount)
+                    ).await?;
+                } else {
+                    bot.send_message(
+                        msg.chat.id,
+                        "❌ Invalid amount. Please set a value between $0 and $10,000"
+                    ).await?;
+                }
+            }
+            Command::SetMaxVolume { amount } => {
+                if amount > 5000.0 && amount <= 10000.0 {
+                    bot.send_message(
+                        msg.chat.id,
+                        format!("✅ Maximum volume threshold set to ${:.2}", amount)
+                    ).await?;
+                } else {
+                    bot.send_message(
+                        msg.chat.id,
+                        "❌ Invalid amount. Please set a value between $5,000 and $10,000"
+                    ).await?;
+                }
+            }
+            Command::HotPairs => {
+                // First, send a scanning message
+                bot.send_message(
+                    msg.chat.id,
+                    "🔥 Scanning for hot trading pairs..."
+                ).await?;
+
+                // Get the hot pairs from our tracker
+                let hot_pairs = volume_tracker.get_hot_pairs();
+
+                if hot_pairs.is_empty() {
+                    bot.send_message(
+                        msg.chat.id,
+                        "📊 No active trading pairs in the specified range found yet.\n\
+                        Volume criteria: $5,000 - $10,000\n\
+                        Will notify you when new activity is detected!"
+                    ).await?;
+                } else {
+                    let mut message = String::from("🔥 Found Hot Trading Pairs:\n\n");
+
+                    for pair in hot_pairs {
+                        message.push_str(&format!(
+                            "Token: {}\n\
+                            📈 Average Trade: ${:.2}\n\
+                            🔄 Number of Trades: {}\n\
+                            💰 Total Volume: ${:.2}\n\
+                            ──────────────\n\n",
+                            pair.token_name,
+                            pair.average_trade_size,
+                            pair.trade_count,
+                            pair.total_volume
+                        ));
+                    }
+
+                    bot.send_message(msg.chat.id, message).await?;
+                }
+            },
+            Command::Settings => {
+                let settings_message = "⚙️ Current Settings:\n\
+                    Minimum Volume: $5,000\n\
+                    Maximum Volume: $10,000\n\
+                    Alert Mode: Active\n\
+                    Monitoring Interval: 30 seconds\n\
+                    \n\
+                    Use these commands to adjust:\n\
+                    /setminvolume - Set minimum volume\n\
+                    /setmaxvolume - Set maximum volume";
+
+                bot.send_message(msg.chat.id, settings_message).await?;
+            }
+            Command::Help => {
+                let help_text = "🤖 Trading Volume Monitor\n\n\
+                    Available Commands:\n\
+                    /start - Start monitoring trading volume\n\
+                    /stop - Stop monitoring\n\
+                    /setminvolume - Set minimum volume threshold\n\
+                    /setmaxvolume - Set maximum volume threshold\n\
+                    /hotpairs - Show current hot trading pairs\n\
+                    /settings - Show current settings\n\
+                    /help - Show this message\n\n\
+                    The bot monitors trading activity and alerts you when it detects\n\
+                    concentrated trading volume between $5,000 and $10,000.";
+
+                bot.send_message(msg.chat.id, help_text).await?;
+            }
+        }
         Ok(())
     }
 
     async fn setup_handlers(&self) -> Result<(), Box<dyn std::error::Error>> {
         let bot = self.bot.clone();
-        let min_amount = self.min_amount;
-        let is_tracking = self.is_tracking;
-        let chat_id = self.chat_id;
+        let volume_tracker = self.volume_tracker.clone();
 
         let handler = Update::filter_message()
             .filter_command::<Command>()
             .endpoint(move |bot: Bot, msg: Message, cmd: Command| {
-                let _min_amount = min_amount;
-                let _is_tracking = is_tracking;
-                let _chat_id = chat_id;
+                let volume_tracker = volume_tracker.clone();
                 async move {
                     match cmd {
                         Command::Start => {
                             bot.send_message(
                                 msg.chat.id,
-                                format!("🐋 Whale tracking started! Monitoring transactions above {} SOL", min_amount)
+                                "🔍 Started monitoring trading volume patterns!\n\
+                                Looking for concentrated trading activity between $5,000-$10,000\n\
+                                You will be notified when hot trading pairs are detected."
                             ).await?;
-                        }
+                        },
                         Command::Stop => {
                             bot.send_message(
                                 msg.chat.id,
-                                "Whale tracking stopped."
+                                "⏹️ Monitoring stopped. Use /start to resume monitoring."
                             ).await?;
-                        }
-                        Command::SetMinimum { amount } => {
-                            bot.send_message(
-                                msg.chat.id,
-                                format!("Minimum transaction amount set to {} SOL", amount)
-                            ).await?;
-                        }
+                        },
+                        Command::SetMinVolume { amount } => {
+                            if amount > 0.0 && amount < 10000.0 {
+                                bot.send_message(
+                                    msg.chat.id,
+                                    format!("✅ Minimum volume threshold set to ${:.2}", amount)
+                                ).await?;
+                            } else {
+                                bot.send_message(
+                                    msg.chat.id,
+                                    "❌ Invalid amount. Please set a value between $0 and $10,000"
+                                ).await?;
+                            }
+                        },
+                        Command::SetMaxVolume { amount } => {
+                            if amount > 5000.0 && amount <= 10000.0 {
+                                bot.send_message(
+                                    msg.chat.id,
+                                    format!("✅ Maximum volume threshold set to ${:.2}", amount)
+                                ).await?;
+                            } else {
+                                bot.send_message(
+                                    msg.chat.id,
+                                    "❌ Invalid amount. Please set a value between $5,000 and $10,000"
+                                ).await?;
+                            }
+                        },
+                        Command::HotPairs => {
+                            let hot_pairs = volume_tracker.get_hot_pairs();
+
+                            if hot_pairs.is_empty() {
+                                bot.send_message(
+                                    msg.chat.id,
+                                    "No hot trading pairs found at the moment."
+                                ).await?;
+                            } else {
+                                let mut message = String::from("🔥 Current Hot Trading Pairs:\n\n");
+
+                                for pair in hot_pairs {
+                                    message.push_str(&format!(
+                                        "Token: {}\n\
+                                        Average Trade: ${:.2}\n\
+                                        Number of Trades: {}\n\
+                                        Total Volume: ${:.2}\n\n",
+                                        pair.token_name,
+                                        pair.average_trade_size,
+                                        pair.trade_count,
+                                        pair.total_volume
+                                    ));
+                                }
+
+                                bot.send_message(msg.chat.id, message).await?;
+                            }
+                        },
                         Command::Settings => {
-                            let status = if is_tracking { "Active" } else { "Inactive" };
-                            bot.send_message(
-                                msg.chat.id,
-                                format!("Current Settings:\nMinimum Amount: {} SOL\nTracking: {}", min_amount, status)
-                            ).await?;
-                        }
+                            let settings_message = format!(
+                                "⚙️ Current Settings:\n\
+                                Minimum Volume: ${:.2}\n\
+                                Maximum Volume: ${:.2}\n\
+                                Alert Mode: {}\n\
+                                Monitoring Interval: 30 seconds\n\
+                                \n\
+                                Use these commands to adjust:\n\
+                                /setminvolume - Set minimum volume\n\
+                                /setmaxvolume - Set maximum volume",
+                                volume_tracker.min_volume,
+                                volume_tracker.max_volume,
+                                if true { "Active" } else { "Inactive" }
+                            );
+
+                            bot.send_message(msg.chat.id, settings_message).await?;
+                        },
                         Command::Help => {
-                            let help_text = "🐋 Whale Tracker Bot\n\n\
-                                Commands:\n\
-                                /start - Start tracking whales\n\
-                                /stop - Stop tracking whales\n\
-                                /setminimum <amount> - Set minimum transaction amount in SOL\n\
+                            let help_text = "🤖 Trading Volume Monitor\n\n\
+                                Available Commands:\n\
+                                /start - Start monitoring trading volume\n\
+                                /stop - Stop monitoring\n\
+                                /setminvolume - Set minimum volume threshold\n\
+                                /setmaxvolume - Set maximum volume threshold\n\
+                                /hotpairs - Show current hot trading pairs\n\
                                 /settings - Show current settings\n\
-                                /help - Show this message";
+                                /help - Show this message\n\n\
+                                The bot monitors trading activity and alerts you when it detects\n\
+                                concentrated trading volume between $5,000 and $10,000.";
+
                             bot.send_message(msg.chat.id, help_text).await?;
                         }
                     }
@@ -90,5 +268,32 @@ impl WhaleBot {
             .await;
 
         Ok(())
+    }
+
+    async fn monitor_volume(&mut self) {
+        while self.is_tracking {
+            if let Ok(hot_pairs) = self.volume_tracker.track_trades().await {
+                for volume in hot_pairs {
+                    if volume.trade_count >= 3 {
+                        let message = format!(
+                            "🔥 Hot Trading Activity Detected!\n\
+                            Token: {}\n\
+                            Average Trade: ${:.2}\n\
+                            Number of Trades: {}\n\
+                            Total Volume: ${:.2}",
+                            volume.token_name,
+                            volume.average_trade_size,
+                            volume.trade_count,
+                            volume.total_volume
+                        );
+
+                        if let Err(e) = self.bot.send_message(self.chat_id, message).await {
+                            println!("Error sending message: {}", e);
+                        }
+                    }
+                }
+            }
+            tokio::time::sleep(Duration::from_secs(30)).await;
+        }
     }
 }
