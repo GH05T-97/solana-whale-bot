@@ -4,6 +4,8 @@ use teloxide::{
 };
 use crate::bot::commands::Command;
 use crate::bot::trading::VolumeTracker;
+use std::time::Duration;
+use std::sync::{Arc, Mutex};
 
 pub struct WhaleBot {
     bot: Bot,
@@ -37,7 +39,9 @@ impl WhaleBot {
 
     async fn setup_handlers(&self) -> Result<(), Box<dyn std::error::Error>> {
         let bot = self.bot.clone();
-        let volume_tracker = self.volume_tracker.clone();
+        let chat_id = self.chat_id;
+        let volume_tracker = Arc::new(Mutex::new(self.volume_tracker.clone()));
+        let is_tracking = Arc::new(Mutex::new(self.is_tracking));
 
         let handler = Update::filter_message()
             .filter_command::<Command>()
@@ -46,13 +50,16 @@ impl WhaleBot {
                 async move {
                     match cmd {
                         Command::Start => {
-                            is_tracking = true;
+                            *is_tracking.lock().unwrap() = true;
 
                             // Start the monitoring in a separate task
                             let monitor_bot = bot.clone();
+                            let monitor_tracker = Arc::clone(&volume_tracker);
+                            let monitor_is_tracking = Arc::clone(&is_tracking);
+
                             tokio::spawn(async move {
-                                while is_tracking {
-                                    if let Ok(hot_pairs) = volume_tracker.track_trades().await {
+                                while *monitor_is_tracking.lock().unwrap() {
+                                    if let Ok(hot_pairs) = monitor_tracker.lock().unwrap().track_trades().await {
                                         for volume in hot_pairs {
                                             if volume.trade_count >= 3 {
                                                 let message = format!(
@@ -83,6 +90,7 @@ impl WhaleBot {
                             ).await?;
                         },
                         Command::Stop => {
+                            *is_tracking.lock().unwrap() = false;
                             bot.send_message(
                                 msg.chat.id,
                                 "⏹️ Monitoring stopped. Use /start to resume monitoring."
