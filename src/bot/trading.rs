@@ -1,8 +1,12 @@
 use solana_client::rpc_client::RpcClient;
-use serde::{Deserialize, Serialize};
+use solana_client::rpc_config::RpcTransactionConfig;
+use solana_sdk::commitment_config::CommitmentConfig;
+use solana_transaction_status::UiTransactionEncoding;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
 use solana_sdk::signature::Signature;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct TradingVolume {
@@ -156,6 +160,17 @@ impl VolumeTracker {
 			}
 		}
 	}
+
+	fn clean_old_data(&mut self) {
+        let now = SystemTime::now();
+        self.volume_data.retain(|_, v| {
+            if let Ok(duration) = now.duration_since(v.last_update) {
+                duration < self.time_window
+            } else {
+                false
+            }
+        });
+    }
 
     async fn get_token_name(&self, mint: &str) -> Result<String, Box<dyn std::error::Error>> {
         // First check our cache
