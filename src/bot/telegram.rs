@@ -76,7 +76,7 @@ impl WhaleBot {
                                                     volume.total_volume
                                                 );
 
-                                                if let Err(e) = monitor_bot.send_message(chat_id, message).await {
+                                                if let Err(e) = self.bot.send_message(ChatId(self.chat_id), message).await {
                                                     println!("Error sending message: {}", e);
                                                 }
                                             }
@@ -87,26 +87,26 @@ impl WhaleBot {
                             });
 
                             bot.send_message(
-                                msg.chat.id,
+                                ChatId(msg.chat.id.0),  // Convert here
                                 "🔍 Started monitoring trading volume patterns!"
                             ).await?;
                         },
                         Command::Stop => {
                             *is_tracking.lock().unwrap() = false;
                             bot.send_message(
-                                msg.chat.id,
+                                ChatId(msg.chat.id.0),
                                 "⏹️ Monitoring stopped. Use /start to resume monitoring."
                             ).await?;
                         },
                         Command::SetMinVolume { amount } => {
                             if amount > 0.0 && amount < 10000.0 {
                                 bot.send_message(
-                                    msg.chat.id,
+                                    ChatId(msg.chat.id.0),
                                     format!("✅ Minimum volume threshold set to ${:.2}", amount)
                                 ).await?;
                             } else {
                                 bot.send_message(
-                                    msg.chat.id,
+                                    ChatId(msg.chat.id.0),
                                     "❌ Invalid amount. Please set a value between $0 and $10,000"
                                 ).await?;
                             }
@@ -114,23 +114,25 @@ impl WhaleBot {
                         Command::SetMaxVolume { amount } => {
                             if amount > 5000.0 && amount <= 10000.0 {
                                 bot.send_message(
-                                    msg.chat.id,
+                                    ChatId(msg.chat.id.0),
                                     format!("✅ Maximum volume threshold set to ${:.2}", amount)
                                 ).await?;
                             } else {
                                 bot.send_message(
-                                    msg.chat.id,
+                                    ChatId(msg.chat.id.0),
                                     "❌ Invalid amount. Please set a value between $5,000 and $10,000"
                                 ).await?;
                             }
                         },
                         Command::HotPairs => {
-                            let hot_pairs = volume_tracker.get_hot_pairs();
+                            let tracker = volume_tracker.lock().unwrap();
+                            let hot_pairs = tracker.get_hot_pairs();
+                            drop(tracker); // Release the lock
 
                             if hot_pairs.is_empty() {
                                 bot.send_message(
-                                    msg.chat.id,
-                                    "No hot trading pairs found at the moment."
+                                    ChatId(msg.chat.id.0),
+                                    "📊 No active trading pairs in the specified range found yet."
                                 ).await?;
                             } else {
                                 let mut message = String::from("🔥 Current Hot Trading Pairs:\n\n");
@@ -148,7 +150,7 @@ impl WhaleBot {
                                     ));
                                 }
 
-                                bot.send_message(msg.chat.id, message).await?;
+                                bot.send_message(ChatId(msg.chat.id.0), message).await?;
                             }
                         },
                         Command::Settings => {
@@ -158,17 +160,14 @@ impl WhaleBot {
                                 Minimum Volume: ${:.2}\n\
                                 Maximum Volume: ${:.2}\n\
                                 Alert Mode: {}\n\
-                                Monitoring Interval: 30 seconds\n\
-                                \n\
-                                Use these commands to adjust:\n\
-                                /setminvolume - Set minimum volume\n\
-                                /setmaxvolume - Set maximum volume",
-                                volume_tracker.min_volume,
-                                volume_tracker.max_volume,
-                                if true { "Active" } else { "Inactive" }
+                                Monitoring Interval: 30 seconds",
+                                tracker.min_volume,
+                                tracker.max_volume,
+                                if *is_tracking.lock().unwrap() { "Active" } else { "Inactive" }
                             );
+                            drop(tracker);
 
-                            bot.send_message(msg.chat.id, settings_message).await?;
+                            bot.send_message(ChatId(msg.chat.id.0), settings_message).await?;
                         },
                         Command::Help => {
                             let help_text = "🤖 Trading Volume Monitor\n\n\
@@ -183,7 +182,7 @@ impl WhaleBot {
                                 The bot monitors trading activity and alerts you when it detects\n\
                                 concentrated trading volume between $5,000 and $10,000.";
 
-                            bot.send_message(msg.chat.id, help_text).await?;
+                            bot.send_message(ChatId(msg.chat.id.0), help_text).await?;
                         }
                     }
                     Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
@@ -216,7 +215,7 @@ impl WhaleBot {
                             volume.total_volume
                         );
 
-                        if let Err(e) = self.bot.send_message(self.chat_id, message).await {
+                        if let Err(e) = self.bot.send_message(ChatId(self.chat_id), message).await {  // Convert here
                             println!("Error sending message: {}", e);
                         }
                     }

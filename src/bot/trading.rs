@@ -2,6 +2,7 @@ use solana_client::rpc_client::RpcClient;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
+use solana_sdk::signature::Signature;
 
 #[derive(Clone)]
 pub struct TradingVolume {
@@ -15,7 +16,7 @@ pub struct TradingVolume {
 
 #[derive(Clone)]
 pub struct VolumeTracker {
-    rpc_client: RpcClient,
+    rpc_client: Arc<RpcClient>,
     pub min_volume: f64,
     pub max_volume: f64,
     volume_data: HashMap<String, TradingVolume>,
@@ -40,7 +41,7 @@ struct TokenPrice {
 impl VolumeTracker {
     pub fn new(rpc_url: &str, min_volume: f64, max_volume: f64) -> Self {
         Self {
-            rpc_client: RpcClient::new(rpc_url.to_string()),
+			rpc_client: Arc::new(RpcClient::new(rpc_url.to_string())),
             min_volume,
             max_volume,
             volume_data: HashMap::new(),
@@ -51,31 +52,26 @@ impl VolumeTracker {
     }
 
     pub async fn track_trades(&mut self) -> Result<Vec<TradingVolume>, Box<dyn std::error::Error>> {
-		use solana_client::rpc_config::{RpcTransactionConfig, RpcSendTransactionConfig};
-		use solana_sdk::commitment_config::CommitmentConfig;
-
-		// Monitor Raydium DEX transactions
 		let dex_program_id = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8".parse()?;
 
-		let signatures = self.rpc_client.get_signatures_for_address(
-			&dex_program_id,
-		)?;
+		let signatures = self.rpc_client.get_signatures_for_address(&dex_program_id)?;
 
 		let mut hot_volumes: Vec<TradingVolume> = Vec::new();
 
 		for sig_info in signatures {
-			let tx = self.rpc_client.get_transaction(
-				&sig_info.signature,
+			let signature = sig_info.signature.parse::<Signature>()?;
+
+			let tx = self.rpc_client.get_transaction_with_config(
+				&signature,
 				RpcTransactionConfig {
-					encoding: None,
+					encoding: Some(UiTransactionEncoding::Json),
 					commitment: Some(CommitmentConfig::confirmed()),
 					max_supported_transaction_version: Some(0),
 				},
 			)?;
 
 			if let Some(meta) = tx.transaction.meta {
-				// Process token transfers
-				if let Some(token_balances) = meta.pre_token_balances {
+				if let Some(token_balances) = meta.pre_token_balances.into_option() {
 					for (pre, post) in token_balances.iter().zip(meta.post_token_balances.unwrap()) {
 						let amount_change = (post.ui_token_amount.ui_amount.unwrap_or(0.0)
 							- pre.ui_token_amount.ui_amount.unwrap_or(0.0)).abs();
