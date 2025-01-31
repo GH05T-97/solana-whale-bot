@@ -1,6 +1,7 @@
 use solana_client::rpc_client::RpcClient;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::{Duration, SystemTime};
+use std::time::{SystemTime, Duration};
 
 #[derive(Clone)]
 pub struct TradingVolume {
@@ -58,8 +59,6 @@ impl VolumeTracker {
 
 		let signatures = self.rpc_client.get_signatures_for_address(
 			&dex_program_id,
-			Some(20), // Last 20 signatures
-			Some(CommitmentConfig::confirmed())
 		)?;
 
 		let mut hot_volumes: Vec<TradingVolume> = Vec::new();
