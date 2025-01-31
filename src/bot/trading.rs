@@ -16,6 +16,18 @@ use std::str::FromStr;
 const RAYDIUM_DEX_PROGRAM: &str = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
 const RAYDIUM_AMM_PROGRAM: &str = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
 
+#[derive(Debug, Deserialize)]
+struct RaydiumPriceResponse {
+    data: HashMap<String, TokenPrice>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TokenPrice {
+    price: f64,
+    #[serde(rename = "mint")]
+    token_mint: String,
+}
+
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct TradingVolume {
