@@ -75,7 +75,7 @@ impl VolumeTracker {
             )?;
 
             if let Some(meta) = tx.transaction.meta {
-                if let Some(token_balances) = meta.pre_token_balances {
+                if let Some(token_balances) = <OptionSerializer<Vec<UiTransactionTokenBalance>> as Into<Option<Vec<UiTransactionTokenBalance>>>>::into(meta.pre_token_balances) {
                     for (pre, post) in token_balances.iter().zip(meta.post_token_balances.unwrap()) {
                         let amount_change = (post.ui_token_amount.ui_amount.unwrap_or(0.0)
                             - pre.ui_token_amount.ui_amount.unwrap_or(0.0)).abs();
