@@ -21,6 +21,7 @@ struct RaydiumPriceResponse {
     data: HashMap<String, TokenPrice>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct TokenPrice {
     price: f64,
