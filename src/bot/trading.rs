@@ -7,10 +7,8 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
 use std::error::Error as StdError;
-use solana_program::{
-    account_info::AccountInfo,
-    pubkey::Pubkey,
-};
+use solana_program:: pubkey::Pubkey;
+use solana_program::account_info::AccountInfo;
 use solana_sdk::account::ReadableAccount;
 use std::str::FromStr;
 
@@ -102,7 +100,7 @@ impl VolumeTracker {
             )?;
 
             if let Some(meta) = tx.transaction.meta {
-                if let Some(token_balances) = meta.pre_token_balances.into() {
+                if let Some(token_balances) = <OptionSerializer<Vec<UiTransactionTokenBalance>> as Into<Option<Vec<UiTransactionTokenBalance>>>>::into(meta.pre_token_balances) {
                     for (pre, post) in token_balances.iter().zip(meta.post_token_balances.unwrap()) {
                         let amount_change = (post.ui_token_amount.ui_amount.unwrap_or(0.0)
                             - pre.ui_token_amount.ui_amount.unwrap_or(0.0)).abs();
@@ -199,7 +197,7 @@ impl VolumeTracker {
         });
     }
 
-    async fn get_token_name(&self, mint: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+	async fn get_token_name(&self, mint: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         // First check our cache
         if let Some(name) = self.token_names_cache.get(mint) {
             return Ok(name.clone());
