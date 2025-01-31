@@ -41,7 +41,7 @@ impl WhaleBot {
 
     async fn setup_handlers(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let bot = self.bot.clone();
-        let chat_id = ChatId(self.chat_id);
+        let _chat_id = ChatId(self.chat_id);
         let volume_tracker = Arc::clone(&self.volume_tracker);
         let is_tracking = Arc::clone(&self.is_tracking);
 

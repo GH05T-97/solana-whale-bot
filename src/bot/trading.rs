@@ -15,7 +15,6 @@ use std::str::FromStr;
 
 #[derive(Clone)]  // Derive Clone directly
 pub struct TradingVolume {
-    token_address: String,
     pub token_name: String,
     pub total_volume: f64,
     pub trade_count: u32,
@@ -30,7 +29,6 @@ pub struct VolumeTracker {
     volume_data: HashMap<String, TradingVolume>,
     time_window: Duration,
     token_names_cache: HashMap<String, String>,
-    price_cache: HashMap<String, (f64, SystemTime)>,
 }
 
 #[derive(Deserialize)]
@@ -42,7 +40,6 @@ struct RaydiumPriceResponse {
 struct TokenPrice {
     price: f64,
     #[serde(rename = "mint")]
-    token_mint: String,
 }
 
 impl VolumeTracker {
@@ -54,7 +51,6 @@ impl VolumeTracker {
             volume_data: HashMap::new(),
             time_window: Duration::from_secs(900),
             token_names_cache: HashMap::new(),
-            price_cache: HashMap::new(),
         }
     }
 
