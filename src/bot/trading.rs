@@ -7,6 +7,8 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::time::{SystemTime, Duration};
 use std::error::Error as StdError;
+use solana_program::account_info::AccountInfo;
+use solana_sdk::account::ReadableAccount;
 
 pub struct TradingVolume {
     token_address: String,
@@ -97,7 +99,7 @@ impl VolumeTracker {
             )?;
 
             if let Some(meta) = tx.transaction.meta {
-                if let Some(token_balances) = meta.pre_token_balances {
+                if let Some(token_balances) = meta.pre_token_balances.into() {
 					for (pre, post) in token_balances.iter().zip(meta.post_token_balances.unwrap()) {
 						let amount_change = (post.ui_token_amount.ui_amount.unwrap_or(0.0)
 							- pre.ui_token_amount.ui_amount.unwrap_or(0.0)).abs();
@@ -200,11 +202,19 @@ impl VolumeTracker {
             return Ok(name.clone());
         }
 
-        // If not in cache, fetch from Solana
-        let token_account = self.rpc_client.get_account(&mint.parse()?)?;
+        let account_info = AccountInfo::new(
+			&Pubkey::new(&mint.as_bytes()),
+			false,
+			false,
+			&mut token_account.lamports(),
+			&mut token_account.data,
+			&token_account.owner,
+			token_account.executable,
+			token_account.rent_epoch,
+		);
 
         // Parse metadata from token account
-        if let Ok(metadata) = spl_token_metadata::state::Metadata::from_account_info(&token_account) {
+        if let Ok(metadata) = spl_token_metadata::state::Metadata::from_account_info(&account_info) {
             let name = metadata.data.name.trim_matches(char::from(0)).to_string();
 
             // Cache the result
