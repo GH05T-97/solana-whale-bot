@@ -74,11 +74,15 @@ impl WhaleBot {
                                                 "🔥 Hot Trading Activity Detected!\n\
                                                 Token: {}\n\
                                                 Average Trade: ${:.2}\n\
-                                                Number of Trades: {}\n\
+                                                Spot Trades: {}\n\
+                                                AMM Swaps: {}\n\
+                                                Total Trades: {}\n\
                                                 Total Volume: ${:.2}",
                                                 volume.token_name,
                                                 volume.average_trade_size,
                                                 volume.trade_count,
+                                                volume.swap_count,
+                                                volume.trade_count + volume.swap_count,
                                                 volume.total_volume
                                             );
 
@@ -121,11 +125,15 @@ impl WhaleBot {
                                     message.push_str(&format!(
                                         "Token: {}\n\
                                         Average Trade: ${:.2}\n\
-                                        Number of Trades: {}\n\
+                                        Spot Trades: {}\n\
+                                        AMM Swaps: {}\n\
+                                        Total Trades: {}\n\
                                         Total Volume: ${:.2}\n\n",
                                         pair.token_name,
                                         pair.average_trade_size,
                                         pair.trade_count,
+                                        pair.swap_count,
+                                        pair.trade_count + pair.swap_count,
                                         pair.total_volume
                                     ));
                                 }
