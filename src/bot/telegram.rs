@@ -1,6 +1,7 @@
 use teloxide::{
     prelude::*,
     dispatching::{HandlerExt, UpdateFilterExt},
+    types::ChatId
 };
 use crate::bot::commands::Command;
 use crate::bot::trading::VolumeTracker;
@@ -39,7 +40,7 @@ impl WhaleBot {
 
     async fn setup_handlers(&self) -> Result<(), Box<dyn std::error::Error>> {
         let bot = self.bot.clone();
-        let chat_id = self.chat_id;
+        let chat_id = ChatId(self.chat_id);
         let volume_tracker = Arc::new(Mutex::new(self.volume_tracker.clone()));
         let is_tracking = Arc::new(Mutex::new(self.is_tracking));
 
@@ -47,6 +48,7 @@ impl WhaleBot {
             .filter_command::<Command>()
             .endpoint(move |bot: Bot, msg: Message, cmd: Command| {
                 let volume_tracker = volume_tracker.clone();
+                let is_tracking = Arc::clone(&is_tracking);
                 async move {
                     match cmd {
                         Command::Start => {
@@ -150,6 +152,7 @@ impl WhaleBot {
                             }
                         },
                         Command::Settings => {
+                            let tracker = volume_tracker.lock().unwrap();
                             let settings_message = format!(
                                 "⚙️ Current Settings:\n\
                                 Minimum Volume: ${:.2}\n\
