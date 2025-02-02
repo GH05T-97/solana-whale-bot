@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Copy the project files
 COPY . .
-
+ENV RUSTFLAGS="-A warnings"
 # Install dependencies
 RUN apt-get update && apt-get install -y \
     pkg-config \
