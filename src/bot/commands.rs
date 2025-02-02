@@ -2,6 +2,7 @@ use teloxide::utils::command::BotCommands;
 
 #[derive(BotCommands, Clone, Debug)]
 #[command(rename_rule = "lowercase")]
+
 pub enum Command {
     #[command(description = "Start monitoring trading volume")]
     Start,
