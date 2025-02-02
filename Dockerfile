@@ -1,31 +1,38 @@
-# Use the latest Rust nightly image
-FROM rustlang/rust:nightly
+# Builder stage
+FROM rustlang/rust:nightly AS builder
 
 # Set the working directory
-WORKDIR /app
+WORKDIR /usr/src/app
 
 # Copy the project files
 COPY . .
+
+# Configure Rust flags to ignore warnings
 ENV RUSTFLAGS="-A warnings"
+
 # Install dependencies
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
-    curl
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Use nightly rust and build
+# Build the project
 RUN rustup default nightly && \
     cargo build --release
 
-# Use a smaller final image for deployment
+# Runtime stage
 FROM debian:buster-slim
 
 WORKDIR /app
 
-COPY --from=builder /usr/src/app/target/release/solana_whale_trader .
+# Copy the binary from builder stage
+COPY --from=builder /usr/src/app/target/release/solana_whale_trader /app/solana_whale_trader
 
 # Add necessary libraries for runtime
-RUN apt-get update && apt-get install -y libssl1.1 && apt-get clean
+RUN apt-get update && \
+    apt-get install -y libssl1.1 ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set the startup command
-CMD ["./solana_whale_bot"]
+CMD ["/app/solana_whale_trader"]
