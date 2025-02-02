@@ -22,7 +22,7 @@ FROM debian:buster-slim
 
 WORKDIR /app
 
-COPY --from=0 /app/target/release/solana_whale_bot .
+COPY --from=builder /usr/src/app/target/release/solana_whale_trader .
 
 # Add necessary libraries for runtime
 RUN apt-get update && apt-get install -y libssl1.1 && apt-get clean
