@@ -22,7 +22,7 @@ RUN rustup default nightly && \
     cargo build --release
 
 # Runtime stage
-FROM debian:bookworm-slim  
+FROM debian:bookworm-slim
 
 WORKDIR /app
 
@@ -31,7 +31,7 @@ COPY --from=builder /usr/src/app/target/release/solana_whale_trader /app/solana_
 
 # Add necessary libraries for runtime
 RUN apt-get update && \
-    apt-get install -y libssl3 ca-certificates && \  # Changed libssl1.1 to libssl3 for bookworm
+    apt-get install -y libssl3 ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 # Set the startup command
