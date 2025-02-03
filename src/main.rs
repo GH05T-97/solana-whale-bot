@@ -1,8 +1,15 @@
-// In your main.rs or lib.rs
+use teloxide::prelude::*;
+use std::time::Duration;
+use log::{error, info};
+use env_logger::init;
+
+// Import WhaleBot from your library
+use solana_whale_trader::bot::telegram::WhaleBot;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Set up logging
-    teloxide::enable_logging!();
+    env_logger::init();
 
     // Read environment variables
     let bot_token = std::env::var("TELEGRAM_BOT_TOKEN")
@@ -20,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         match whale_bot.start().await {
             Ok(_) => break,
             Err(e) => {
-                eprintln!("Bot encountered an error: {}. Restarting...", e);
+                error!("Bot encountered an error: {}. Restarting...", e);
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
         }
