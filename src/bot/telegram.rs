@@ -147,9 +147,48 @@ impl WhaleBot {
                                 }
                             }
                         },
-                        Command::MonitorTokenVolume(token_symbol, min, max, timeframe) => {
-                            info!("Updating volume thresholds for {}: min=${}, max=${}, timeframe={}min",
-                                token_symbol, min, max, timeframe);
+                        Command::MonitorTokenVolume(input) => {
+                            let parts: Vec<&str> = input.split_whitespace().collect();
+
+                            if parts.len() != 4 {
+                                bot.send_message(
+                                    ChatId(msg.chat.id.0),
+                                    "❌ Invalid format! Use: /monitortokenvolume <token> <min> <max> <timeframe>",
+                                )
+                                .await?;
+                                return Ok(());
+                            }
+
+                            let token_symbol = parts[0].to_string();
+                            let min: f64 = match parts[1].parse() {
+                                Ok(val) => val,
+                                Err(_) => {
+                                    bot.send_message(ChatId(msg.chat.id.0), "❌ Invalid min volume format!").await?;
+                                    return Ok(());
+                                }
+                            };
+
+                            let max: f64 = match parts[2].parse() {
+                                Ok(val) => val,
+                                Err(_) => {
+                                    bot.send_message(ChatId(msg.chat.id.0), "❌ Invalid max volume format!").await?;
+                                    return Ok(());
+                                }
+                            };
+
+                            let timeframe: u64 = match parts[3].parse() {
+                                Ok(val) => val,
+                                Err(_) => {
+                                    bot.send_message(ChatId(msg.chat.id.0), "❌ Invalid timeframe format!").await?;
+                                    return Ok(());
+                                }
+                            };
+
+                            info!(
+                                "Updating volume thresholds for {}: min=${}, max=${}, timeframe={}min",
+                                token_symbol, min, max, timeframe
+                            );
+
                             let mut tracker = volume_tracker.lock().await;
 
                             match tracker.get_token_info(&token_symbol).await {
@@ -157,26 +196,35 @@ impl WhaleBot {
                                     if !tracker.monitored_tokens.contains(&token_info.address) {
                                         bot.send_message(
                                             ChatId(msg.chat.id.0),
-                                            format!("❌ Please first add {} to monitoring using /monitorToken", token_symbol)
-                                        ).await?;
+                                            format!(
+                                                "❌ Please first add {} to monitoring using /monitorToken",
+                                                token_symbol
+                                            ),
+                                        )
+                                        .await?;
                                         return Ok(());
                                     }
 
                                     tracker.set_token_volume_threshold(token_info.address, min, max, timeframe);
                                     bot.send_message(
                                         ChatId(msg.chat.id.0),
-                                        format!("📊 Updated monitoring thresholds for {}:\nMin Volume: ${}\nMax Volume: ${}\nTimeframe: {} minutes",
-                                            token_symbol, min, max, timeframe)
-                                    ).await?;
+                                        format!(
+                                            "📊 Updated monitoring thresholds for {}:\nMin Volume: ${}\nMax Volume: ${}\nTimeframe: {} minutes",
+                                            token_symbol, min, max, timeframe
+                                        ),
+                                    )
+                                    .await?;
                                 }
-                                Err(e) => {
+                                Err(_) => {
                                     bot.send_message(
                                         ChatId(msg.chat.id.0),
-                                        format!("❌ Error: Token {} not found", token_symbol)
-                                    ).await?;
+                                        format!("❌ Error: Token {} not found", token_symbol),
+                                    )
+                                    .await?;
                                 }
                             }
-                        },
+                        }
+                        ,
                         _ => {
                             warn!("Unhandled command received: {:?}", cmd);
                         }

@@ -12,14 +12,23 @@ pub enum Command {
     #[command(description = "Monitor specific token")]
     MonitorToken(String),
     #[command(description = "Set volume threshold for token")]
-    MonitorTokenVolume(String, f64, f64, u64),
+    MonitorTokenVolume(String),  // Accept input as a single string
 }
 
 impl Command {
-    pub fn parse_with_bot_commands(text: &str) -> Option<Self> {
-        match BotCommands::parse(text, "WhaleTrackBot") {
-            Ok(cmd) => Some(cmd),
-            Err(_) => None
+    pub fn parse_monitor_token_volume(&self) -> Option<(String, f64, f64, u64)> {
+        if let Command::MonitorTokenVolume(input) = self {
+            let parts: Vec<&str> = input.split_whitespace().collect();
+            if parts.len() == 4 {
+                if let (Ok(min), Ok(max), Ok(duration)) = (
+                    parts[1].parse::<f64>(),
+                    parts[2].parse::<f64>(),
+                    parts[3].parse::<u64>(),
+                ) {
+                    return Some((parts[0].to_string(), min, max, duration));
+                }
+            }
         }
+        None
     }
 }
