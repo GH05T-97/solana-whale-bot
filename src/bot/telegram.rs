@@ -277,23 +277,25 @@ impl WhaleBot {
                 .enable_ctrlc_handler()
                 .build();
 
-            // Use long polling with a timeout
-            info!("Building dispatcher");
-            let dispatcher = Dispatcher::builder(bot, handler)
-                .enable_ctrlc_handler()
-                .build();
+                info!("Building dispatcher");
+                let dispatcher = Dispatcher::builder(bot, handler)
+                    .enable_ctrlc_handler()
+                    .build();
 
-            // Use long polling with a timeout
-            tokio::select! {
-                result = dispatcher.dispatch() => {
-                    result?; // This will propagate any errors
+                // Use long polling with a timeout
+                tokio::select! {
+                    dispatch_result = dispatcher.dispatch() => {
+                        if let Err(e) = dispatch_result {
+                            error!("Dispatcher error: {}", e);
+                            return Err(e.into());
+                        }
+                    }
+                    _ = tokio::time::sleep(Duration::from_secs(3600)) => {
+                        error!("Dispatcher timeout, restarting...");
+                        return Err("Dispatcher timeout".into());
+                    }
                 }
-                _ = tokio::time::sleep(Duration::from_secs(3600)) => {
-                    error!("Dispatcher timeout, restarting...");
-                    return Err("Dispatcher timeout".into());
-                }
-            };
 
-            Ok(())
+                Ok(())
     }
 }
