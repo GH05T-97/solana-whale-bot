@@ -1,6 +1,7 @@
 use teloxide::prelude::*;
 use std::time::Duration;
 use log::{error, info};
+use anyhow::Error;
 
 // Import WhaleBot from your library
 use solana_whale_trader::bot::telegram::WhaleBot;
