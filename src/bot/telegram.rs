@@ -20,14 +20,33 @@ pub struct WhaleBot {
 impl WhaleBot {
     pub async fn new(token: &str, chat_id: i64) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         info!("Initializing WhaleBot with chat_id: {}", chat_id);
-        let bot = Bot::new(token);
+         let bot = Bot::new(token);
+
+        // Implement a retry mechanism for bot initialization
+        let mut retry_count = 0;
+        let max_retries = 5;
+
+        loop {
+            match bot.get_me().await {
+                Ok(_) => break,
+                Err(e) => {
+                    retry_count += 1;
+                    if retry_count > max_retries {
+                        return Err(format!("Failed to initialize bot after {} retries: {}", max_retries, e).into());
+                    }
+
+                    eprintln!("Bot initialization error: {}. Retrying...", e);
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+            }
+        }
+
         let volume_tracker = VolumeTracker::new(
             "https://api.mainnet-beta.solana.com",
             5000.0,
-            10000.0)
-        ;
+            10000.0
+        );
 
-        info!("WhaleBot initialization complete");
         Ok(Self {
             bot,
             chat_id,
@@ -37,9 +56,24 @@ impl WhaleBot {
     }
 
     pub async fn start(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        info!("Starting WhaleBot trading volume monitor...");
-        self.setup_handlers().await?;
-        info!("WhaleBot handlers setup complete");
+        let mut retry_interval = Duration::from_secs(5);
+
+        loop {
+            match self.setup_handlers().await {
+                Ok(_) => break,
+                Err(e) => {
+                    eprintln!("Bot setup error: {}. Retrying in {:?}...", e, retry_interval);
+                    tokio::time::sleep(retry_interval).await;
+
+                    // Exponential backoff
+                    retry_interval = std::cmp::min(
+                        retry_interval * 2,
+                        Duration::from_secs(60)
+                    );
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -49,6 +83,12 @@ impl WhaleBot {
         let _chat_id = ChatId(self.chat_id);
         let volume_tracker = Arc::clone(&self.volume_tracker);
         let is_tracking = Arc::clone(&self.is_tracking);
+
+        let bot = self.bot.clone();
+
+        // Clear previous webhook if any
+        bot.delete_webhook().send().await?;
+
 
         let handler = Update::filter_message()
             .filter_command::<Command>()
@@ -232,14 +272,28 @@ impl WhaleBot {
                 }
             });
 
-        info!("Building dispatcher");
-        Dispatcher::builder(bot, handler)
-            .enable_ctrlc_handler()
-            .build()
-            .dispatch()
-            .await;
+            info!("Building dispatcher");
+            let mut dispatcher = Dispatcher::builder(bot, handler)
+                .enable_ctrlc_handler()
+                .build();
 
-        info!("Dispatcher finished");
-        Ok(())
+            // Use long polling with a timeout
+            info!("Building dispatcher");
+            let dispatcher = Dispatcher::builder(bot, handler)
+                .enable_ctrlc_handler()
+                .build();
+
+            // Use long polling with a timeout
+            tokio::select! {
+                result = dispatcher.dispatch() => {
+                    result?; // This will propagate any errors
+                }
+                _ = tokio::time::sleep(Duration::from_secs(3600)) => {
+                    error!("Dispatcher timeout, restarting...");
+                    return Err("Dispatcher timeout".into());
+                }
+            };
+
+            Ok(())
     }
 }
