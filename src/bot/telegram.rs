@@ -274,7 +274,7 @@ impl WhaleBot {
 
 
             info!("Building dispatcher");
-            let dispatcher = Dispatcher::builder(bot, handler)
+            let mut dispatcher = Dispatcher::builder(bot, handler)
                 .enable_ctrlc_handler()
                 .build();
 
