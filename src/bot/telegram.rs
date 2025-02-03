@@ -23,8 +23,8 @@ impl WhaleBot {
         let bot = Bot::new(token);
         let volume_tracker = VolumeTracker::new(
             "https://api.mainnet-beta.solana.com",
-            5000,
-            10000)
+            5000.0,
+            10000.0)
         ;
 
         info!("WhaleBot initialization complete");

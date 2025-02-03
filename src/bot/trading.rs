@@ -23,6 +23,12 @@ pub struct TokenInfo {
     pub address: String,
 }
 
+impl std::fmt::Display for TokenInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.symbol)
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct RaydiumPriceResponse {
     data: HashMap<String, TokenPrice>,
@@ -53,6 +59,7 @@ pub struct TradingVolume {
     pub swap_count: u32,  // New field to track AMM swaps
     pub average_trade_size: f64,
     last_update: SystemTime,
+    time_window: Duration,
 }
 
 #[allow(dead_code)]
@@ -84,7 +91,7 @@ impl VolumeTracker {
             max_volume,
             timeframe: Duration::from_secs(timeframe_minutes * 60),
         };
-        self.volume_thresholds.insert(token_address, threshold);
+        self.volume_thresholds.insert(token_address.clone(), threshold);
         info!("Set threshold for token {}: min=${}, max=${}, timeframe={}min",
             token_address, min_volume, max_volume, timeframe_minutes);
     }
@@ -318,6 +325,7 @@ impl VolumeTracker {
                         swap_count: 0,
                         average_trade_size: trade_value,
                         last_update: SystemTime::now(),
+                        time_window: Duration::from_secs(60 * 60)
                     });
                 }
             }
