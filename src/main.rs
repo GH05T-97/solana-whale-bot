@@ -1,14 +1,13 @@
 use teloxide::prelude::*;
 use std::time::Duration;
 use log::{error, info};
-use env_logger::init;
 
 // Import WhaleBot from your library
 use solana_whale_trader::bot::telegram::WhaleBot;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Set up logging
+async fn main() -> Result<(), anyhow::Error> {
+    // Initialize logging
     env_logger::init();
 
     // Read environment variables
