@@ -3,18 +3,14 @@ use teloxide::utils::command::BotCommands;
 #[derive(BotCommands, Clone, Debug)]
 #[command(rename_rule = "lowercase")]
 pub enum Command {
-    #[command(description = "Start monitoring trading volume")]
+    #[command(description = "Start monitoring trades")]
     Start,
-    #[command(description = "Stop monitoring")]
+    #[command(description = "Stop monitoring trades")]
     Stop,
-    #[command(description = "Set minimum volume in USD")]
-    SetMinVolume { amount: f64 },
-    #[command(description = "Set maximum volume in USD")]
-    SetMaxVolume { amount: f64 },
     #[command(description = "Show current hot trading pairs")]
     HotPairs,
-    #[command(description = "Show current settings")]
-    Settings,
-    #[command(description = "Show help message")]
-    Help,
+    #[command(description = "Monitor specific token - Usage: /monitorToken <token_symbol>")]
+    MonitorToken(String),
+    #[command(description = "Set volume threshold for token - Usage: /monitorTokenVolume <token_symbol> <min_volume> <max_volume> <timeframe_minutes>")]
+    MonitorTokenVolume(String, f64, f64, u64),
 }

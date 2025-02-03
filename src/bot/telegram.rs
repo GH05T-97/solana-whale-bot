@@ -23,9 +23,9 @@ impl WhaleBot {
         let bot = Bot::new(token);
         let volume_tracker = VolumeTracker::new(
             "https://api.mainnet-beta.solana.com",
-            5000.0,
-            10000.0,
-        );
+            5000,
+            10000)
+        ;
 
         info!("WhaleBot initialization complete");
         Ok(Self {
@@ -129,41 +129,52 @@ impl WhaleBot {
                                 "⏹️ Monitoring stopped. Use /start to resume monitoring."
                             ).await?;
                         },
-                        Command::HotPairs => {
-                            info!("Fetching hot pairs for chat_id: {}", msg.chat.id);
-                            let hot_pairs = {
-                                let tracker = volume_tracker.lock().await;
-                                tracker.get_hot_pairs()
-                            };
-
-                            if hot_pairs.is_empty() {
-                                info!("No hot pairs found");
-                                bot.send_message(
-                                    ChatId(msg.chat.id.0),
-                                    "📊 No active trading pairs in the specified range found yet."
-                                ).await?;
-                            } else {
-                                info!("Found {} hot pairs", hot_pairs.len());
-                                let mut message = String::from("🔥 Current Hot Trading Pairs:\n\n");
-
-                                for pair in hot_pairs {
-                                    message.push_str(&format!(
-                                        "Token: {}\n\
-                                        Average Trade: ${:.2}\n\
-                                        Spot Trades: {}\n\
-                                        AMM Swaps: {}\n\
-                                        Total Trades: {}\n\
-                                        Total Volume: ${:.2}\n\n",
-                                        pair.token_name,
-                                        pair.average_trade_size,
-                                        pair.trade_count,
-                                        pair.swap_count,
-                                        pair.trade_count + pair.swap_count,
-                                        pair.total_volume
-                                    ));
+                        Command::MonitorToken(token_symbol) => {
+                            info!("Adding token {} to monitoring list", token_symbol);
+                            let mut tracker = volume_tracker.lock().await;
+                            match tracker.add_monitored_token(&token_symbol).await {
+                                Ok(symbol) => {
+                                    bot.send_message(
+                                        ChatId(msg.chat.id.0),
+                                        format!("🎯 Now monitoring {} token", symbol)
+                                    ).await?;
                                 }
+                                Err(e) => {
+                                    bot.send_message(
+                                        ChatId(msg.chat.id.0),
+                                        format!("❌ Error: {}", e)
+                                    ).await?;
+                                }
+                            }
+                        },
+                        Command::MonitorTokenVolume(token_symbol, min, max, timeframe) => {
+                            info!("Updating volume thresholds for {}: min=${}, max=${}, timeframe={}min",
+                                token_symbol, min, max, timeframe);
+                            let mut tracker = volume_tracker.lock().await;
 
-                                bot.send_message(ChatId(msg.chat.id.0), message).await?;
+                            match tracker.get_token_info(&token_symbol).await {
+                                Ok(token_info) => {
+                                    if !tracker.monitored_tokens.contains(&token_info.address) {
+                                        bot.send_message(
+                                            ChatId(msg.chat.id.0),
+                                            format!("❌ Please first add {} to monitoring using /monitorToken", token_symbol)
+                                        ).await?;
+                                        return Ok(());
+                                    }
+
+                                    tracker.set_token_volume_threshold(token_info.address, min, max, timeframe);
+                                    bot.send_message(
+                                        ChatId(msg.chat.id.0),
+                                        format!("📊 Updated monitoring thresholds for {}:\nMin Volume: ${}\nMax Volume: ${}\nTimeframe: {} minutes",
+                                            token_symbol, min, max, timeframe)
+                                    ).await?;
+                                }
+                                Err(e) => {
+                                    bot.send_message(
+                                        ChatId(msg.chat.id.0),
+                                        format!("❌ Error: Token {} not found", token_symbol)
+                                    ).await?;
+                                }
                             }
                         },
                         _ => {
