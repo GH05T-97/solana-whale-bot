@@ -223,8 +223,7 @@ impl WhaleBot {
                                     .await?;
                                 }
                             }
-                        }
-                        ,
+                        },
                         _ => {
                             warn!("Unhandled command received: {:?}", cmd);
                         }
