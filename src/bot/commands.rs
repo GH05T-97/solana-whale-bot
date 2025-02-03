@@ -19,4 +19,4 @@ pub enum Command {
 //     MonitorToken(String),
 //     #[command(description = "Set volume threshold for token - Usage: /monitorTokenVolume <token_symbol> <min_volume> <max_volume> <timeframe_minutes>")]
 //     MonitorTokenVolume(String, f64, f64, u64),
-}
+// }
