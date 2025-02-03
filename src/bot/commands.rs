@@ -1,4 +1,5 @@
 use teloxide::utils::command::BotCommands;
+use std::collections::HashSet;
 
 #[derive(BotCommands, Clone, Debug)]
 #[command(rename_rule = "lowercase")]

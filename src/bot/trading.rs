@@ -13,6 +13,7 @@ use std::time::{SystemTime, Duration};
 use solana_program::pubkey::Pubkey;
 use std::str::FromStr;
 use log::{info, warn, error};
+use std::collections::{HashMap, HashSet};
 
 const RAYDIUM_DEX_PROGRAM: &str = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
 const RAYDIUM_AMM_PROGRAM: &str = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
@@ -361,13 +362,23 @@ impl VolumeTracker {
         info!("Cleaning old data...");
         let now = SystemTime::now();
         let initial_count = self.volume_data.len();
-        self.volume_data.retain(|_, v| {
+
+        // Use a default timeframe of 1 hour if no specific threshold is set
+        let default_timeframe = Duration::from_secs(60 * 60);
+
+        self.volume_data.retain(|token_address, v| {
+            // Try to get the threshold for this token, otherwise use default
+            let timeframe = self.volume_thresholds.get(token_address)
+                .map(|threshold| threshold.timeframe)
+                .unwrap_or(default_timeframe);
+
             if let Ok(duration) = now.duration_since(v.last_update) {
-                duration < self.time_window
+                duration < timeframe
             } else {
                 false
             }
         });
+
         let removed_count = initial_count - self.volume_data.len();
         info!("Cleaned {} old entries", removed_count);
     }
