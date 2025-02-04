@@ -195,18 +195,22 @@ impl WhaleBot {
                             let mut tracker = volume_tracker.lock().await;
                             match tracker.add_monitored_token(&token_symbol).await {
                                 Ok(symbol) => {
+                                    info!("Sending success message for token {}", symbol);
                                     bot.send_message(
                                         ChatId(msg.chat.id.0),
                                         format!("🎯 Now monitoring {} token", symbol)
                                     ).await?;
                                 }
                                 Err(e) => {
+                                    error!("Sending error message: {}", e);
                                     bot.send_message(
                                         ChatId(msg.chat.id.0),
                                         format!("❌ Error: {}", e)
                                     ).await?;
                                 }
                             }
+
+
                         },
                         Command::MonitorTokenVolume(input) => {
                             let parts: Vec<&str> = input.split_whitespace().collect();

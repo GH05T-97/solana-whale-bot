@@ -86,7 +86,7 @@ impl VolumeTracker {
     }
 
     pub fn get_monitored_tokens_list(&self) -> String {
-        self.monitored_tokens
+        return self.monitored_tokens
             .iter()
             .map(|addr| self.token_names_cache.get(addr).unwrap_or(addr).to_string())
             .collect::<Vec<_>>()
@@ -111,6 +111,7 @@ impl VolumeTracker {
 
         // Set default thresholds if none exist
         if !self.volume_thresholds.contains_key(&token_info.address) {
+            info!("Setting default thresholds for new monitored token: {}", token_symbol);
             self.set_token_volume_threshold(
                 token_info.address.clone(),
                 5000.0,  // default min volume
@@ -130,6 +131,7 @@ impl VolumeTracker {
 
         // New method to get token info from Raydium
         pub async fn get_token_info(&self, token_symbol: &str) -> Result<TokenInfo, Box<dyn std::error::Error + Send + Sync>> {
+            info!("Fetching token info for {} from Raydium", token_symbol);
             let url = "https://api.raydium.io/v2/main/tokens";
             let response = reqwest::Client::new()
                 .get(url)
@@ -142,6 +144,7 @@ impl VolumeTracker {
                 for (address, info) in tokens {
                     if let Some(symbol) = info.get("symbol").and_then(|s| s.as_str()) {
                         if symbol.to_uppercase() == token_symbol.to_uppercase() {
+                            info!("Found token info for {}: {}", token_symbol, address);
                             return Ok(TokenInfo {
                                 symbol: symbol.to_string(),
                                 address: address.clone(),
@@ -164,9 +167,11 @@ impl VolumeTracker {
 
             // Track DEX trades for monitored tokens
             let dex_volumes = self.track_dex_trades().await?;
+            info!("DEX trade tracking completed. Found {} volumes", dex_volumes.len());
 
             // Track AMM swaps for monitored tokens
             let swap_volumes = self.track_amm_swaps().await?;
+            info!("AMM swap tracking completed. Found {} volumes", swap_volumes.len());
 
             // Update volume data for each token
             for volume in dex_volumes.into_iter().chain(swap_volumes) {
@@ -178,8 +183,16 @@ impl VolumeTracker {
                         (existing.trade_count + existing.swap_count) as f64;
                     existing.last_update = SystemTime::now();
                     new_volumes.push(existing.clone());
+                    info!("Updated volume data for {}: total=${:.2}, trades={}, swaps={}, avgSize=${:.2}",
+                        existing.token_name, existing.total_volume, existing.trade_count,
+                        existing.swap_count, existing.average_trade_size);
+                    new_volumes.push(existing.clone());
                 } else {
                     self.volume_data.insert(volume.token_address.clone(), volume.clone());
+                    new_volumes.push(volume);
+                    info!("Added new volume data for {}: total=${:.2}, trades={}, swaps={}, avgSize=${:.2}",
+                        volume.token_name, volume.total_volume, volume.trade_count,
+                        volume.swap_count, volume.average_trade_size);
                     new_volumes.push(volume);
                 }
             }
@@ -201,6 +214,7 @@ impl VolumeTracker {
             let mut hot_volumes = Vec::new();
 
             for sig_info in signatures {
+                info!("Processing DEX signature: {}", sig_info.signature);
                 let tx = self.rpc_client.get_transaction_with_config(
                     &sig_info.signature.parse()?,
                     RpcTransactionConfig {
@@ -218,6 +232,7 @@ impl VolumeTracker {
                             .any(|balance| self.monitored_tokens.contains(&balance.mint));
 
                         if has_monitored_token {
+                            info!("Found monitored token in DEX transaction");
                             self.process_token_balances(
                                 &pre_balances,
                                 meta.post_token_balances.unwrap(),
@@ -243,6 +258,7 @@ impl VolumeTracker {
             let mut hot_volumes = Vec::new();
 
             for sig_info in signatures {
+                info!("Processing AMM signature: {}", sig_info.signature);
                 let tx = self.rpc_client.get_transaction_with_config(
                     &sig_info.signature.parse()?,
                     RpcTransactionConfig {
@@ -259,6 +275,7 @@ impl VolumeTracker {
                             .any(|balance| self.monitored_tokens.contains(&balance.mint));
 
                         if has_monitored_token {
+                            info!("Found monitored token in AMM transaction");
                             self.process_token_balances(
                                 &pre_balances,
                                 meta.post_token_balances.unwrap(),
