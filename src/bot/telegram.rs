@@ -93,6 +93,7 @@ impl WhaleBot {
         let handler = Update::filter_message()
             .filter_command::<Command>()
             .endpoint(move |bot: Bot, msg: Message, cmd: Command| {
+                info!("Raw message received: {:?}", msg);
                 let volume_tracker = Arc::clone(&volume_tracker);
                 let is_tracking = Arc::clone(&is_tracking);
                 async move {
@@ -299,6 +300,8 @@ impl WhaleBot {
             let mut dispatcher = Dispatcher::builder(bot, handler)
                 .enable_ctrlc_handler()
                 .build();
+
+            info!("Dispatcher built with command handlers: {:?}", dispatcher);
 
             // Use long polling with a timeout
             tokio::select! {
