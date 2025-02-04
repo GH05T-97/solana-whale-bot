@@ -99,6 +99,21 @@ impl WhaleBot {
                     info!("Received command: {:?} from chat_id: {}", cmd, msg.chat.id);
                     match cmd {
                         Command::Start => {
+                            let has_monitored_tokens = {
+                                let tracker = volume_tracker.lock().await;
+                                !tracker.monitored_tokens.is_empty()
+                            };
+
+                            if !has_monitored_tokens {
+                                info!("Attempt to start monitoring without configured tokens");
+                                bot.send_message(
+                                    ChatId(msg.chat.id.0),
+                                    "⚠️ Please use /monitorToken <symbol> first to select which token to monitor (e.g., /monitorToken SOL)"
+                                ).await?;
+                                return Ok(());
+                            }
+
+
                             info!("Starting monitoring for chat_id: {}", msg.chat.id);
                             *is_tracking.lock().await = true;
 
@@ -155,10 +170,16 @@ impl WhaleBot {
                                 info!("Monitoring task ended for chat_id: {}", chat_id);
                             });
 
+                            // Get list of monitored tokens for confirmation message
+                            let monitored_tokens = {
+                                let tracker = volume_tracker.lock().await;
+                                tracker.get_monitored_tokens_list()
+                            };
+
                             info!("Sending start confirmation message");
                             bot.send_message(
                                 ChatId(msg.chat.id.0),
-                                "🔍 Started monitoring trading volume patterns!"
+                                format!("🔍 Started monitoring trading patterns for: {}", monitored_tokens)
                             ).await?;
                         },
                         Command::Stop => {
