@@ -1,12 +1,26 @@
 use teloxide::prelude::*;
 use std::time::Duration;
 use log::{error, info};
+use std::error::Error;
+use std::fmt;
 
 // Import WhaleBot from your library
 use solana_whale_trader::bot::telegram::WhaleBot;
 
+// Custom error type
+#[derive(Debug)]
+struct BotError(String);
+
+impl fmt::Display for BotError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl Error for BotError {}
+
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     // Initialize logging
     env_logger::init();
 
@@ -21,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Create and start the bot
     let whale_bot = WhaleBot::new(&bot_token, chat_id)
         .await
-        .map_err(Box::new)?;
+        .map_err(|e| BotError(e.to_string()))?;
 
     // Implement a robust main loop with restart capability
     loop {
