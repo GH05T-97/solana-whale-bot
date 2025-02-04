@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Create and start the bot
     let whale_bot = WhaleBot::new(&bot_token, chat_id)
         .await
-        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
+        .map_err(Box::new)?;
 
     // Implement a robust main loop with restart capability
     loop {
