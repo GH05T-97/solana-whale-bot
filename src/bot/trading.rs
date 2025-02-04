@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcTransactionConfig;
-use solana_client::rpc_config::RpcSignaturesForAddressConfig;
+use solana_client::rpc_config::GetConfirmedSignaturesForAddress2Config;
 use solana_sdk::{commitment_config::CommitmentConfig, account::Account};
 use solana_transaction_status::{
     option_serializer::OptionSerializer,
@@ -160,14 +160,13 @@ impl VolumeTracker {
 
     async fn track_dex_trades(&self) -> Result<Vec<TradingVolume>, Box<dyn std::error::Error + Send + Sync>> {
         let dex_program_id = Pubkey::from_str(RAYDIUM_DEX_PROGRAM)?;
-
         let mut all_signatures = Vec::new();
         let mut before = None;
 
         loop {
             let batch = self.rpc_client.get_signatures_for_address_with_config(
                 &dex_program_id,
-                RpcSignaturesForAddressConfig {
+                GetConfirmedSignaturesForAddress2Config {
                     before,
                     until: None,
                     limit: Some(100),
