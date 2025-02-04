@@ -87,7 +87,6 @@ impl WhaleBot {
 
         let command_handler = Update::filter_message()
             .filter_command::<Command>()
-            .map_err(|e| error!("Command parsing error: {:?}", e))
             .endpoint(move |bot: Bot, msg: Message, cmd: Command| {
                 error!("Command received: {:?}, raw text: {}", cmd, msg.text().unwrap_or_default());
                 let volume_tracker = Arc::clone(&volume_tracker);
