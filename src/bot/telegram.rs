@@ -80,20 +80,16 @@ impl WhaleBot {
     async fn setup_handlers(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         info!("Setting up WhaleBot command handlers");
         let bot = self.bot.clone();
-        let _chat_id = ChatId(self.chat_id);
+        bot.delete_webhook().send().await?;
+
         let volume_tracker = Arc::clone(&self.volume_tracker);
         let is_tracking = Arc::clone(&self.is_tracking);
 
-        let bot = self.bot.clone();
-
-        // Clear previous webhook if any
-        bot.delete_webhook().send().await?;
-
-
-        let handler = Update::filter_message()
+        let command_handler = Update::filter_message()
             .filter_command::<Command>()
+            .map_err(|e| error!("Command parsing error: {:?}", e))
             .endpoint(move |bot: Bot, msg: Message, cmd: Command| {
-                info!("Raw message received: {:?}", msg);
+                error!("Command received: {:?}, raw text: {}", cmd, msg.text().unwrap_or_default());
                 let volume_tracker = Arc::clone(&volume_tracker);
                 let is_tracking = Arc::clone(&is_tracking);
                 async move {
@@ -296,24 +292,24 @@ impl WhaleBot {
             });
 
 
-            info!("Building dispatcher");
-            let mut dispatcher = Dispatcher::builder(bot, handler)
-                .enable_ctrlc_handler()
-                .build();
+            let dispatcher = Dispatcher::builder(bot, dptree::entry().branch(command_handler))
+            .dependencies(dptree::deps![volume_tracker, is_tracking])
+            .error_handler(LoggingErrorHandler::with_custom_text(
+                "Error in command handler"
+            ))
+            .enable_ctrlc_handler()
+            .build();
 
-            info!("Dispatcher built with command handlers");
-
-            // Use long polling with a timeout
-            tokio::select! {
-                _ = dispatcher.dispatch() => {
-                    info!("Dispatcher finished");
-                }
-                _ = tokio::time::sleep(Duration::from_secs(3600)) => {
-                    error!("Dispatcher timeout, restarting...");
-                    return Err("Dispatcher timeout".into());
-                }
+        tokio::select! {
+            _ = dispatcher.dispatch() => {
+                info!("Dispatcher finished");
             }
+            _ = tokio::time::sleep(Duration::from_secs(3600)) => {
+                error!("Dispatcher timeout, restarting...");
+                return Err("Dispatcher timeout".into());
+            }
+        }
 
-            Ok(())
+        Ok(())
     }
 }
