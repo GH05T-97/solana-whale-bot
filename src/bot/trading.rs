@@ -159,13 +159,41 @@ impl VolumeTracker {
 
     async fn track_dex_trades(&self) -> Result<Vec<TradingVolume>, Box<dyn std::error::Error + Send + Sync>> {
         let dex_program_id = Pubkey::from_str(RAYDIUM_DEX_PROGRAM)?;
-        let signatures = self.rpc_client.get_signatures_for_address(&dex_program_id)?;
-        info!("Found {} DEX transactions to analyze", signatures.len());
 
+        let mut all_signatures = Vec::new();
+        let mut before = None;
+
+        loop {
+            let batch = self.rpc_client.get_signatures_for_address_with_config(
+                &dex_program_id,
+                GetSignaturesForAddressConfig {
+                    before,
+                    limit: Some(100),
+                    commitment: Some(CommitmentConfig::confirmed()),
+                    ..Default::default()
+                },
+            )?;
+
+            if batch.is_empty() {
+                break;
+            }
+
+            before = Some(batch.last().unwrap().signature.clone());
+            all_signatures.extend(batch);
+
+            if all_signatures.len() >= 1000 {
+                break;
+            }
+        }
+
+        info!("Found {} DEX transactions to analyze", all_signatures.len());
         let mut hot_volumes = Vec::new();
 
-        for (i, sig_info) in signatures.iter().enumerate() {
-            info!("Processing DEX transaction {}/{}", i + 1, signatures.len());
+        for (i, sig_info) in all_signatures.iter().enumerate() {
+            if i % 50 == 0 {
+                info!("Processing batch {}-{}", i, i+50);
+            }
+
             let tx = self.rpc_client.get_transaction_with_config(
                 &sig_info.signature.parse()?,
                 RpcTransactionConfig {
@@ -183,7 +211,7 @@ impl VolumeTracker {
         }
 
         Ok(hot_volumes)
-    }
+     }
 
     async fn track_amm_swaps(&self) -> Result<Vec<TradingVolume>, Box<dyn std::error::Error + Send + Sync>> {
         let amm_program_id = Pubkey::from_str(RAYDIUM_AMM_PROGRAM)?;
