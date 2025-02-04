@@ -311,11 +311,11 @@ impl VolumeTracker {
         // Parse the JSON after logging
         let json: serde_json::Value = serde_json::from_str(&text)?;
 
-        if let Some(data) = json.get("data").and_then(|d| d.as_array()) {
-            for token in data {
+        if let Some(tokens) = json.get("data").and_then(|d| d.get("mintList").and_then(|m| m.as_array())) {
+            for token in tokens {
                 if let (Some(symbol), Some(address)) = (
                     token.get("symbol").and_then(|s| s.as_str()),
-                    token.get("mint").and_then(|m| m.as_str())
+                    token.get("address").and_then(|a| a.as_str())
                 ) {
                     if symbol.to_uppercase() == token_symbol.to_uppercase() {
                         return Ok(TokenInfo {
@@ -326,7 +326,6 @@ impl VolumeTracker {
                 }
             }
         }
-
         Err(format!("Token {} not found on Raydium", token_symbol).into())
     }
 
