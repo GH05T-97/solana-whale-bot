@@ -6,7 +6,7 @@ use log::{error, info};
 use solana_whale_trader::bot::telegram::WhaleBot;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Initialize logging
     env_logger::init();
 
@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create and start the bot
     let whale_bot = WhaleBot::new(&bot_token, chat_id)
         .await
-        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
 
     // Implement a robust main loop with restart capability
     loop {
