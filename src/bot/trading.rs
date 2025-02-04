@@ -186,14 +186,13 @@ impl VolumeTracker {
                     info!("Updated volume data for {}: total=${:.2}, trades={}, swaps={}, avgSize=${:.2}",
                         existing.token_name, existing.total_volume, existing.trade_count,
                         existing.swap_count, existing.average_trade_size);
-                    new_volumes.push(existing.clone());
                 } else {
-                    self.volume_data.insert(volume.token_address.clone(), volume.clone());
-                    new_volumes.push(volume);
+                    let volume_clone = volume.clone();
+                    self.volume_data.insert(volume.token_address.clone(), volume);
+                    new_volumes.push(volume_clone);
                     info!("Added new volume data for {}: total=${:.2}, trades={}, swaps={}, avgSize=${:.2}",
-                        volume.token_name, volume.total_volume, volume.trade_count,
-                        volume.swap_count, volume.average_trade_size);
-                    new_volumes.push(volume);
+                        volume_clone.token_name, volume_clone.total_volume, volume_clone.trade_count,
+                        volume_clone.swap_count, volume_clone.average_trade_size);
                 }
             }
 
