@@ -3,7 +3,7 @@
 use std::sync::Arc;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcTransactionConfig;
-use solana_client::rpc_config::RpcSignaturesForAddressConfig as GetSignaturesForAddressConfig;
+use solana_client::rpc_config::GetConfirmedSignaturesForAddress2Config;
 use solana_sdk::{commitment_config::CommitmentConfig, account::Account};
 use solana_transaction_status::{
     option_serializer::OptionSerializer,
@@ -167,7 +167,7 @@ impl VolumeTracker {
         loop {
             let batch = self.rpc_client.get_signatures_for_address_with_config(
                 &dex_program_id,
-                GetSignaturesForAddressConfig {
+                GetConfirmedSignaturesForAddress2Config {
                     before,
                     limit: Some(100),
                     commitment: Some(CommitmentConfig::confirmed()),
