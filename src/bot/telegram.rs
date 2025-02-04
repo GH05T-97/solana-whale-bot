@@ -301,7 +301,7 @@ impl WhaleBot {
                 .enable_ctrlc_handler()
                 .build();
 
-            info!("Dispatcher built with command handlers: {:?}", dispatcher);
+            info!("Dispatcher built with command handlers");
 
             // Use long polling with a timeout
             tokio::select! {
