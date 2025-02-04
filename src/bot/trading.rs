@@ -193,6 +193,7 @@ impl VolumeTracker {
             info!("Completed trade tracking cycle. Found {} volumes for monitored tokens", new_volumes.len());
             Ok(new_volumes)
         }
+    }
 
         async fn track_dex_trades(&self) -> Result<Vec<TradingVolume>, Box<dyn std::error::Error + Send + Sync>> {
             let dex_program_id = Pubkey::from_str(RAYDIUM_DEX_PROGRAM)?;
@@ -281,6 +282,7 @@ impl VolumeTracker {
             info!("Found {} AMM swaps for monitored tokens", hot_volumes.len());
             Ok(hot_volumes)
         }
+
 
     async fn process_token_balances(
         &self,
@@ -408,5 +410,5 @@ impl VolumeTracker {
         info!("No cached name found for token {}, using mint address", mint);
         Ok(mint.to_string())
     }
-}
+
 }
