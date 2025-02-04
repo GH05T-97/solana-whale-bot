@@ -88,10 +88,9 @@ impl VolumeTracker {
     pub fn get_monitored_tokens_list(&self) -> String {
         self.monitored_tokens
             .iter()
-            .map(|addr| self.token_names_cache.get(addr).unwrap_or(addr))
+            .map(|addr| self.token_names_cache.get(addr).unwrap_or(addr).to_string())
             .collect::<Vec<_>>()
-            .as_slice()  // Convert the Vec to a slice
-            .join(", ")  // Now you can call join on the slice
+            .join(", ")
     }
 
     pub fn set_token_volume_threshold(&mut self, token_address: String, min_volume: f64, max_volume: f64, timeframe_minutes: u64) {
