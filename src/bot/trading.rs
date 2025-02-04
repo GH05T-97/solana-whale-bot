@@ -3,6 +3,7 @@
 use std::sync::Arc;
 use solana_client::rpc_client::RpcClient;
 use solana_client::rpc_config::RpcTransactionConfig;
+use solana_client::rpc_config::RpcSignaturesForAddressConfig as GetSignaturesForAddressConfig;
 use solana_sdk::{commitment_config::CommitmentConfig, account::Account};
 use solana_transaction_status::{
     option_serializer::OptionSerializer,
