@@ -195,50 +195,50 @@ impl VolumeTracker {
         }
     }
 
-        async fn track_dex_trades(&self) -> Result<Vec<TradingVolume>, Box<dyn std::error::Error + Send + Sync>> {
-            let dex_program_id = Pubkey::from_str(RAYDIUM_DEX_PROGRAM)?;
-            info!("Fetching signatures for DEX program");
-
-            // Get transactions
-            let signatures = self.rpc_client.get_signatures_for_address(&dex_program_id)?;
-            info!("Analyzing {} DEX transactions for {} monitored tokens",
-                signatures.len(), self.monitored_tokens.len());
-
-            let mut hot_volumes = Vec::new();
-
-            for sig_info in signatures {
-                info!("Processing DEX signature: {}", sig_info.signature);
-                let tx = self.rpc_client.get_transaction_with_config(
-                    &sig_info.signature.parse()?,
-                    RpcTransactionConfig {
-                        encoding: Some(UiTransactionEncoding::Json),
-                        commitment: Some(CommitmentConfig::confirmed()),
-                        max_supported_transaction_version: Some(0),
-                    },
-                )?;
-
-                // Process transaction if it contains token balances
-                if let Some(meta) = tx.transaction.meta {
-                    if let Some(pre_balances) = <OptionSerializer<Vec<UiTransactionTokenBalance>> as Into<Option<Vec<UiTransactionTokenBalance>>>>::into(meta.pre_token_balances) {
-                        // Check if any monitored tokens are involved in this transaction
-                        let has_monitored_token = pre_balances.iter()
-                            .any(|balance| self.monitored_tokens.contains(&balance.mint));
-
-                        if has_monitored_token {
-                            info!("Found monitored token in DEX transaction");
-                            self.process_token_balances(
-                                &pre_balances,
-                                meta.post_token_balances.unwrap(),
-                                &mut hot_volumes
-                            ).await?;
-                        }
-                    }
-                }
-            }
-
-            info!("Found {} DEX trades for monitored tokens", hot_volumes.len());
-            Ok(hot_volumes)
+    pub async fn track_trades(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        info!("Starting trade tracking cycle for {} monitored tokens", self.monitored_tokens.len());
+        if self.monitored_tokens.is_empty() {
+            info!("No tokens being monitored. Please add tokens using /monitorToken");
+            return Ok(());
         }
+
+        let mut new_volumes = Vec::new();
+
+        // Track DEX trades for monitored tokens
+        let dex_volumes = self.track_dex_trades().await?;
+        info!("DEX trade tracking completed. Found {} volumes", dex_volumes.len());
+
+        // Track AMM swaps for monitored tokens
+        let swap_volumes = self.track_amm_swaps().await?;
+        info!("AMM swap tracking completed. Found {} volumes", swap_volumes.len());
+
+        // Update volume data for each token
+        for volume in dex_volumes.into_iter().chain(swap_volumes) {
+            if let Some(existing) = self.volume_data.get_mut(&volume.token_address) {
+                existing.total_volume += volume.total_volume;
+                existing.trade_count += volume.trade_count;
+                existing.swap_count += volume.swap_count;
+                existing.average_trade_size = existing.total_volume /
+                    (existing.trade_count + existing.swap_count) as f64;
+                existing.last_update = SystemTime::now();
+                new_volumes.push(existing.clone());
+                info!("Updated volume data for {}: total=${:.2}, trades={}, swaps={}, avgSize=${:.2}",
+                    existing.token_name, existing.total_volume, existing.trade_count,
+                    existing.swap_count, existing.average_trade_size);
+            } else {
+                let volume_clone = volume.clone();
+                self.volume_data.insert(volume.token_address.clone(), volume);
+                new_volumes.push(volume_clone);
+                info!("Added new volume data for {}: total=${:.2}, trades={}, swaps={}, avgSize=${:.2}",
+                    volume_clone.token_name, volume_clone.total_volume, volume_clone.trade_count,
+                    volume_clone.swap_count, volume_clone.average_trade_size);
+            }
+        }
+
+        self.clean_old_data();
+        info!("Completed trade tracking cycle. Found {} volumes for monitored tokens", new_volumes.len());
+        Ok(())
+    }
 
         async fn track_amm_swaps(&self) -> Result<Vec<TradingVolume>, Box<dyn std::error::Error + Send + Sync>> {
             let amm_program_id = Pubkey::from_str(RAYDIUM_AMM_PROGRAM)?;
