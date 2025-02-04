@@ -35,6 +35,12 @@ pub struct TokenInfo {
     pub address: String,
 }
 
+impl std::fmt::Display for TokenInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.symbol)
+    }
+}
+
 #[derive(Clone)]
 pub struct TradingVolume {
     pub token_address: String,
@@ -77,6 +83,14 @@ impl VolumeTracker {
         self.monitored_tokens.insert(token_info.address.clone());
         info!("Added token {} ({}) to monitoring", token_info.symbol, token_info.address);
         Ok(token_info)
+    }
+
+    pub fn set_token_volume_threshold(&mut self, token_address: String, min: f64, max: f64, timeframe: u64) {
+        self.min_volume = min;
+        self.max_volume = max;
+        self.time_window = Duration::from_secs(timeframe * 60);
+        info!("Updated volume thresholds for token {}: min=${}, max=${}, timeframe={}min",
+            token_address, min, max, timeframe);
     }
 
     pub fn remove_monitored_token(&mut self, token_address: &str) {
@@ -238,6 +252,7 @@ impl VolumeTracker {
                     existing.last_update = SystemTime::now();
                     info!("Updated volume for {}: ${:.2}", token_name, trade_value);
                 } else {
+                    let token_name_clone = token_name.clone();  // Clone here
                     hot_volumes.push(TradingVolume {
                         token_address: post.mint.clone(),
                         token_name,
@@ -247,7 +262,7 @@ impl VolumeTracker {
                         average_trade_size: trade_value,
                         last_update: SystemTime::now(),
                     });
-                    info!("New trade tracked for {}: ${:.2}", token_name, trade_value);
+                    info!("New trade tracked for {}: ${:.2}", token_name_clone, trade_value);
                 }
             }
         }
