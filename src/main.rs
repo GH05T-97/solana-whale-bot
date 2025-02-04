@@ -19,7 +19,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Invalid TELEGRAM_CHAT_ID");
 
     // Create and start the bot
-    let whale_bot = WhaleBot::new(&bot_token, chat_id).await?;
+    let whale_bot = WhaleBot::new(&bot_token, chat_id)
+        .await
+        .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
     // Implement a robust main loop with restart capability
     loop {
