@@ -1,13 +1,12 @@
 use teloxide::prelude::*;
 use std::time::Duration;
 use log::{error, info};
-use anyhow::{Error, Result};
 
 // Import WhaleBot from your library
 use solana_whale_trader::bot::telegram::WhaleBot;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize logging
     env_logger::init();
 
@@ -20,10 +19,7 @@ async fn main() -> Result<()> {
         .expect("Invalid TELEGRAM_CHAT_ID");
 
     // Create and start the bot
-    let whale_bot = WhaleBot::new(&bot_token, chat_id)
-        .await
-        .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
-        .map_err(Error::from)?;
+    let whale_bot = WhaleBot::new(&bot_token, chat_id).await?;
 
     // Implement a robust main loop with restart capability
     loop {
