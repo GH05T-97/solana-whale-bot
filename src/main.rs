@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
     // Create and start the bot
     let whale_bot = WhaleBot::new(&bot_token, chat_id)
         .await
-        .map_err(|e| Error::from(e))?; // Convert the error to `anyhow::Error`
+        .map_err(Error::from)?;  // Simplified error conversion
 
     // Implement a robust main loop with restart capability
     loop {
