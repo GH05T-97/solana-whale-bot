@@ -183,17 +183,10 @@ impl VolumeTracker {
                         (existing.trade_count + existing.swap_count) as f64;
                     existing.last_update = SystemTime::now();
                     new_volumes.push(existing.clone());
-                    info!("Updated volume data for {}: total=${:.2}, trades={}, swaps={}, avgSize=${:.2}",
-                        existing.token_name, existing.total_volume, existing.trade_count,
-                        existing.swap_count, existing.average_trade_size);
                 } else {
                     let volume_clone = volume.clone();
                     self.volume_data.insert(volume.token_address.clone(), volume);
                     new_volumes.push(volume_clone);
-                    info!("Added new volume data for {}: total=${:.2}, trades={}, swaps={}, avgSize=${:.2}",
-                        volume_clone.token_name, volume_clone.total_volume, volume_clone.trade_count,
-                        volume_clone.swap_count, volume_clone.average_trade_size);
-                }
             }
 
             self.clean_old_data();
