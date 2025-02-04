@@ -299,7 +299,7 @@ impl VolumeTracker {
     }
 
     pub async fn get_token_info(&self, token_symbol: &str) -> Result<TokenInfo, Box<dyn std::error::Error + Send + Sync>> {
-        let url = "https://api.raydium.io/v2/main/tokens";
+        let url = "https://api-v3.raydium.io/mint/list";
         let client = reqwest::Client::new();
 
         let response = client.get(url).send().await?;
@@ -311,14 +311,16 @@ impl VolumeTracker {
         // Parse the JSON after logging
         let json: serde_json::Value = serde_json::from_str(&text)?;
 
-        if let Some(tokens) = json.as_object() {
-            for (address, info) in tokens {
-                if let Some(symbol) = info.get("symbol").and_then(|s| s.as_str()) {
-                    info!("Found token: {} with symbol: {}", address, symbol);
+        if let Some(data) = json.get("data").and_then(|d| d.as_array()) {
+            for token in data {
+                if let (Some(symbol), Some(address)) = (
+                    token.get("symbol").and_then(|s| s.as_str()),
+                    token.get("mint").and_then(|m| m.as_str())
+                ) {
                     if symbol.to_uppercase() == token_symbol.to_uppercase() {
                         return Ok(TokenInfo {
                             symbol: symbol.to_string(),
-                            address: address.clone(),
+                            address: address.to_string(),
                         });
                     }
                 }
